@@ -1,0 +1,63 @@
+# 万农问天 开发规范
+
+## 全局配置
+
+- 项目类型：Vue 3 + TypeScript + Vite + Turborepo Monorepo
+- 包管理：pnpm
+- 代码检查：ESLint + Prettier + Stylelint
+
+## 命名规范
+
+- 组件文件：PascalCase（如 `ChatMessage.vue`）
+- 组合式函数：`use` + PascalCase（如 `useAudioStream.ts`）
+- 普通文件：kebab-case（如 `open-url.ts`）
+- 变量/函数：camelCase
+- 常量：UPPER_SNAKE_CASE
+- CSS 类名：kebab-case
+
+## 代码格式
+
+- **缩进**：2 空格
+- **引号**：单引号
+- **分号**：需要
+- **对象空格**：`{ foo: 'bar' }`
+- **数组空格**：`[1, 2, 3]`（无多余空格）
+- **文件末尾**：换行符
+
+## Vue 组件规范
+
+1. 使用 `<script setup lang="ts">`
+2. Props 使用 `defineProps<{ ... }>()` 或 TypeScript 类型
+3. 事件使用 `defineEmits`
+4. 组合式函数以 `use` 开头
+5. 组件按功能分类放置目录
+
+## API 调用规范
+
+- 统一使用 Axios
+- 请求封装在 `src/api/` 目录
+- 类型定义使用 TypeScript interface
+
+## Git 提交规范
+
+```
+<type>: <subject>
+
+feat:     新功能
+fix:      修复 Bug
+style:    代码格式
+perf:     性能优化
+refactor: 重构
+test:     测试
+docs:     文档
+chore:    杂项
+```
+
+- 任务关联：`feat: task#任务号`
+- Bug 修复：`fix: bug#bug号`
+
+## 移动端适配
+
+- 使用 `postcss-px-to-viewport`，基准宽度 375px
+- 排除 `/pc/` 路径和 `style.scss`
+- 组件分 PC/Mobile 版本存放

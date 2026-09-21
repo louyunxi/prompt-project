@@ -1,0 +1,17 @@
+{
+  "name": "@anhui/app-config",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "types": "./types/index.d.ts",
+  "main": "index.js",
+  "module": "index.js",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "scripts": {},
+  "private": true
+}

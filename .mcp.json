@@ -1,0 +1,46 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "npx",
+        "-y",
+        "@playwright/mcp@latest"
+      ]
+    },
+    "zentao-11-3": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@maxenlin/mcp-zentao-11-3"
+      ],
+      "env": {
+        "ZENTAO_URL": "http://chandao.freetek.cc/zentao",
+        "ZENTAO_USERNAME": "xiezefa",
+        "ZENTAO_PASSWORD": "Fage7878787878"
+      }
+    },
+    "git": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-git"
+      ]
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ]
+    },
+    "figma": {
+      "url": "https://mcp.figma.com/mcp",
+      "type": "http"
+    },
+    "dify": {
+      "url": "https://docs.dify.ai/mcp",
+      "type": "http"
+    }
+  }
+}

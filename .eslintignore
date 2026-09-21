@@ -1,0 +1,10 @@
+node_modules
+.husky
+.commitlintrc.js
+.lintstagedrc.js
+.stylelintrc.js
+apiutil.js
+dist
+app-h5
+widget
+publish/assets
