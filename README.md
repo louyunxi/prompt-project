@@ -1,6 +1,6 @@
-# 安徽大数据平台 - 万农问天
+# 左岸AI提示词库
 
-基于 AI 大模型的农业智能问答平台，支持 PC 端和移动端访问。
+提示词模板管理与分享平台，支持 PC 端和移动端访问。
 
 ## 环境要求
 
@@ -26,7 +26,7 @@ pnpm publish
 ## 应用启动
 
 ```bash
-cd apps/app-farming-model
+cd apps/app-prompt
 
 # 开发启动
 pnpm start
@@ -42,9 +42,8 @@ pnpm preview
 
 ```
 ├── apps/
-│   └── app-farming-model/    # 农业模型主应用
-├── configs/                   # 工程配置
-├── packages/                 # 内部共享包
+│   └── app-prompt/           # 提示词库主应用
+├── configs/                  # 工程配置
 └── scripts/                  # 构建脚本
 ```
 
@@ -87,7 +86,6 @@ pnpm lint:stylelint
 
 - 🎯 Vue 3 + TypeScript + Vite 技术栈
 - 📱 PC/Mobile 双端适配
-- 🤖 AI 大模型智能问答
-- 🌦️ 天气效果可视化
+- 🧩 提示词模板管理与分享
 - 🔧 Turborepo Monorepo 架构
 - 📦 pnpm Workspace 高效管理

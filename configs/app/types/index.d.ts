@@ -34,6 +34,7 @@ type ApiConfig = {
 
 type Config = {
   appPrompt: H5Config;
+  appWeb: H5Config;
   apiConfig: ApiConfig;
 };
 

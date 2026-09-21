@@ -7,6 +7,14 @@ const config = {
     serverUrlTest: 'https://wnwt.snkoudai.com/admin/',
     serverUrlProd: 'https://wnwt.ahnw.cn/admin/',
   },
+  appWeb: {
+    host: '0.0.0.0',
+    port: 8889,
+    outDir: 'dist/',
+    // 在线地址
+    serverUrlTest: 'https://wnwt.snkoudai.com/web/',
+    serverUrlProd: 'https://wnwt.ahnw.cn/web/',
+  },
 };
 
 // API 相关配置（各应用统一在此维护）
