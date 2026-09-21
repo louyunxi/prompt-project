@@ -45,8 +45,11 @@ const buildPromptRoutes = () =>
     children: categories.map((category) => ({
       path: category,
       name: `Prompt${platform.charAt(0).toUpperCase() + platform.slice(1)}${category.charAt(0).toUpperCase() + category.slice(1)}`,
-      component: () => import(`../views/prompt/${platform}/${category}/index.vue`),
-      meta: { title: categoryNames[category] },
+      component:
+        platform === 'pc'
+          ? () => import('../views/prompt/pc/MicroContainer.vue')
+          : () => import(`../views/prompt/${platform}/${category}/index.vue`),
+      meta: { title: categoryNames[category], category },
     })),
   }));
 

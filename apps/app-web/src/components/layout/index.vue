@@ -138,7 +138,7 @@ const handleMenuClick = ({ key }: any) => {
   router.push(`/${key}`);
 };
 
-const handleThemeChange = (checked: boolean) => {
+const handleThemeChange = (checked: boolean | string | number) => {
   themeStore.setTheme(checked ? 'dark' : 'light');
 };
 </script>

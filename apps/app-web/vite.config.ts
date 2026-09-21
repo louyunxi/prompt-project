@@ -7,6 +7,7 @@ import Components from 'unplugin-vue-components/vite';
 import { AntDesignVueResolver } from 'unplugin-vue-components/resolvers';
 import appConfig from '@anhui/app-config';
 import mkcert from 'vite-plugin-mkcert';
+import qiankun from '@xunv/vite-plugin-qiankun-lite';
 
 // 子应用名称映射
 const APP_NAMES: Record<string, string> = {
@@ -31,6 +32,11 @@ export default defineConfig(({ mode }: ConfigEnv) => {
         hosts: ['localhost', '127.0.0.1'],
       }),
       vue(),
+      // qiankun 子应用接入：名称需与主应用 apps/app-prompt/src/micro/index.ts 中注册的 name 一致
+      qiankun({
+        name: 'app-web',
+        sandbox: true,
+      }),
       AutoImport({
         include: [/\.[tj]sx?$/, /\.vue$/, /\.vue\?vue/],
         imports: ['vue', 'vue-router'],
@@ -73,6 +79,9 @@ export default defineConfig(({ mode }: ConfigEnv) => {
     server: {
       host: '0.0.0.0',
       port: appConfig.appWeb.port,
+      // qiankun 主应用可能通过局域网 IP（如 https://192.168.0.12:8888）访问，
+      // 需放行其 origin 跨域获取子应用 entry 与模块，否则容器空白
+      cors: { origin: true },
     },
   };
 });
