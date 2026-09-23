@@ -10,6 +10,14 @@
  *       selector::before/::after { background-image: url(...) !important }
  *       （伪元素无法写内联样式，只能走样式表）。
  *
+ * 一对多支持（组件级换图）：
+ *   - 组件容器内同一 src 可能被多个 DOM 复用，ChangeImageEntry.targets
+ *     聚合了全部目标；
+ *   - applyImageReplaceMany(targets, url) 把同一张结果图同步灌到
+ *     全部目标 DOM（img / background / pseudo 都正确处理）；
+ *   - 各 target 仍以 selector+kind 为 key 独立记录在 applied Map，
+ *     便于刷新重放 / 部分目标单独更新。
+ *
  * 持续重放：
  *   - 已应用的替换保存在模块级 Map（key = selector + kind）；
  *   - MutationObserver 监听内容区：Vue 重渲染把 <img src> 重置、
@@ -149,6 +157,29 @@ export function applyImageReplace(
   const item: ImageReplaceItem = { ...target, url };
   applied.set(keyOf(target), item);
   applyOne(item);
+  rebuildPseudoSheet();
+  ensureObserver();
+}
+
+/**
+ * 一对多替换（组件级换图）：同一张结果图同步应用到多个 DOM 目标。
+ * - targets 中每个元素各自独立记录在 applied Map，便于刷新重放；
+ * - 全部目标缺失时等价于无操作；
+ * - 任一目标 selector+kind 重复调用时以最后一次为准（与单目标一致）。
+ */
+export function applyImageReplaceMany(
+  targets: ChangeImageTarget[],
+  url: string,
+): void {
+  if (typeof document === 'undefined' || !url) {return;}
+  const list = Array.isArray(targets) ? targets.filter((t) => !!t?.selector) : [];
+  if (!list.length) {return;}
+  list.forEach((target) => {
+    const item: ImageReplaceItem = { ...target, url };
+    applied.set(keyOf(target), item);
+    applyOne(item);
+  });
+  // 伪元素样式表只需最后构建一次（含全部 entries）
   rebuildPseudoSheet();
   ensureObserver();
 }

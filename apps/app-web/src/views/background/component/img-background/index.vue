@@ -5,7 +5,7 @@
        使用 <img> + object-fit: cover 实现，不拉伸。
 -->
 <template>
-  <div class="img-background">
+  <div class="img-background" data-image-component="imgBackground">
     <img
       :src="bgSrc"
       :alt="alt"

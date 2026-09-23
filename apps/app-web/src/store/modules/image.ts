@@ -120,8 +120,15 @@ export interface ImageTask {
   /** 本地保存信息（成功后才会有值；失败时会被忽略，文件不会出现在磁盘上） */
   localSaved?: ImageTaskLocalSaved;
   /**
-   * 「换图」任务的目标 DOM（selector + kind），由新建任务弹框写入。
+   * 「换图」任务的目标 DOM 列表（selector + kind），由新建任务弹框写入。
+   * 同一 src 在组件容器内可能被多个 DOM 复用，全部记录以便一对多替换。
    * 纯数据可持久化：刷新页面、本地图片 URL 恢复后，可重新替换回原 DOM。
+   * 兼容：旧版本任务可能只有单一 changeTarget，fromPersisted 会自动迁移。
+   */
+  changeTargets?: ChangeImageTarget[];
+  /**
+   * @deprecated 仅用于兼容旧持久化数据，新代码请使用 changeTargets。
+   * 读取时统一走 getChangeTargets(task)，会自动合并两套字段。
    */
   changeTarget?: ChangeImageTarget;
   /**
@@ -235,8 +242,19 @@ function fromPersisted(persisted: unknown): ImageTask[] {
       // 跨刷新后 blob: URL 已无效，退回到 CDN 链接（如果原记录里有）
       imageUrl = t.result?.originalUrl ?? '';
     }
+    // 旧持久化数据：单一 changeTarget → 自动迁移到 changeTargets 数组
+    const changeTargets: ChangeImageTarget[] | undefined = Array.isArray(
+      t.changeTargets,
+    )
+      ? t.changeTargets
+      : t.changeTarget
+        ? [t.changeTarget]
+        : undefined;
     return {
       ...t,
+      changeTargets,
+      // 旧字段在迁移后清空，避免重复消费
+      changeTarget: undefined,
       result: t.result
         ? {
             imageUrl,
@@ -279,6 +297,30 @@ function checkAndFailTimeoutTasks(
       );
     }
   });
+}
+
+/**
+ * 从任务中读取「换图」目标列表，统一兼容新旧字段。
+ * - 新数据：直接读 changeTargets；
+ * - 旧数据：读 changeTarget，缺省时返回空数组。
+ * 自动去重 selector+kind，避免同一目标被记录两次。
+ */
+export function getChangeTargets(task: ImageTask): ChangeImageTarget[] {
+  const list: ChangeImageTarget[] = [];
+  const seen = new Set<string>();
+  const push = (t: ChangeImageTarget | undefined) => {
+    if (!t?.selector) {return;}
+    const key = `${t.selector}__${t.kind}`;
+    if (seen.has(key)) {return;}
+    seen.add(key);
+    list.push(t);
+  };
+  if (Array.isArray(task.changeTargets)) {
+    task.changeTargets.forEach(push);
+  }
+  // 兼容旧字段（即使迁移过，这里再兜一次不会有副作用：seen 屏蔽重复）
+  push(task.changeTarget);
+  return list;
 }
 
 export const useImageStore = defineStore(
@@ -480,13 +522,14 @@ export const useImageStore = defineStore(
     /**
      * 新增一个 idle 任务，返回任务 ID。
      * 默认取 prompt 前 30 字作为展示名，调用方也可通过 name 覆盖。
-     * changeTarget 由「换图」小标签弹框传入，用于任务完成后把本地
-     * 图片替换回目标 DOM（可持久化，刷新后仍能重放）。
+     * changeTargets 由「换图」弹框传入（组件级聚合后的目标列表），
+     * 用于任务完成后把本地图片同步替换回组件内全部目标 DOM，
+     * 可持久化，刷新后仍能重放。
      */
     function addTask(
       params: GenerateImageParams,
       name?: string,
-      changeTarget?: ChangeImageTarget,
+      changeTargets?: ChangeImageTarget[],
     ): string {
       const id =
         `task-${Date.now().toString(36)}-${Math.random()
@@ -498,7 +541,9 @@ export const useImageStore = defineStore(
         params,
         status: 'idle',
         createdAt: Date.now(),
-        changeTarget,
+        changeTargets: changeTargets && changeTargets.length
+          ? changeTargets.map((t) => ({ selector: t.selector, kind: t.kind }))
+          : undefined,
       };
       tasks.value.unshift(task);
       return id;

@@ -8,6 +8,7 @@
 <template>
   <div
     class="image-background"
+    data-image-component="imageBackground"
     :style="bgStyle"
     :image="replaceImageMeta"
     role="img"

@@ -120,7 +120,6 @@ import {
   saveImageFromUrlToDir,
   toastSaveError,
 } from '@/utils/image-save';
-import { applyImageReplace } from '@/utils/image-apply';
 import ImageTaskPanel from './components/ImageTaskPanel.vue';
 import LocalPathGuardModal from './components/LocalPathGuardModal.vue';
 import { useImageTaskStart } from './composables/useImageTaskStart';
@@ -192,10 +191,9 @@ const offFns: Array<() => void> = [];
  * 2. 拿到 result.originalUrl（CDN 链接，原始未压缩）
  * 3. 下载 → 压缩 → 写本地
  * 4. 读回本地文件生成可回显 object URL，回写 task.localSaved.localUrl
- * 5. 若任务带 changeTarget（由「换图」小标签发起），立即用本地图片
- *    地址替换目标 DOM
  *
  * 本地保存失败仅 toast 提示，不动任务态。
+ * 注意：DOM 图片替换已统一收敛到「图片替换」弹框内完成，抽屉不再替换 DOM。
  */
 async function handleAutoSave(
   taskId: string,
@@ -216,7 +214,6 @@ async function handleAutoSave(
   // 选格式：偏好 outputFormat，没有再根据 transparent 推
   const format = (task.params.outputFormat ?? 'png').toLowerCase();
   const fileName = buildImageFileName(task.id, format);
-  const changeTarget = task.changeTarget;
 
   try {
     const info = await saveImageFromUrlToDir(handle, originalUrl, fileName, {
@@ -249,18 +246,6 @@ async function handleAutoSave(
       `已保存到本地：${imageStore.localSaveFolderName}/${info.fileName}`,
       4,
     );
-
-    // 「换图」任务：用本地图片地址替换目标 DOM；
-    // 本地地址读回失败时回退到本次结果图（blob/CDN），保证替换动作发生
-    if (changeTarget) {
-      const latest = imageStore.tasks.find((t) => t.id === taskId);
-      const replaceUrl =
-        localUrl ??
-        latest?.result?.imageUrl ??
-        latest?.result?.originalUrl ??
-        originalUrl;
-      applyImageReplace(changeTarget, replaceUrl);
-    }
   } catch (err) {
     toastSaveError(err);
   }

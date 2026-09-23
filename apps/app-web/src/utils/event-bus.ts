@@ -117,8 +117,9 @@ export const ImageEvents = {
   /** 清除背景（回到默认渐变）：{} */
   CLEAR_BACKGROUND: 'image:clear:background',
   /**
-   * 页面上的「图片可替换」小标签被点击：{ selector, kind, src, image }。
-   * 由 utils/image-marker 的探针发出，全局弹框监听后新建生图任务。
+   * 组件级「图片可替换」聚合事件：点击当前组件右上角的「换图」按钮时，
+   * 由 image-marker 发出。载荷包含当前组件内按 src 去重后的全部图片
+   * 及其一对多 DOM 目标。消费方（弹框）先选要替换哪张图，再做 AI/本地替换。
    * 注意：事件名固定为 change-image（对外约定，勿改）。
    */
   CHANGE_IMAGE: 'change-image',
@@ -145,18 +146,51 @@ export interface ChangeImageTarget {
 }
 
 /**
- * change-image 事件载荷。
- * 点击页面图片上的「换图」小标签时，由 image-marker 发出。
+ * 当前组件内一张「去重后的图片」：同一个 src 在同一组件内可能被多次渲染，
+ * 这里把同一 src 的所有 ChangeImageTarget 聚到同一 entry 下，做一对多替换。
  */
-export interface ChangeImagePayload extends ChangeImageTarget {
-  /** 当前图片地址（<img src> 或 background-image 解析出的 url，可能是 data:） */
-  src?: string;
+export interface ChangeImageEntry {
+  /** group 内唯一 id（弹框 tab key / 选中态） */
+  id: string;
   /**
-   * DOM 上 image 属性（JSON 字符串）解析出的生图参数片段。
-   * 仅包含 DOM 显式声明的字段，消费方需与默认参数 merge，
-   * 缺省字段不得被清空。
+   * 当前图片地址（用于缩略图回显 + 默认参数解析来源）。
+   * data: URL 也允许，便于本地默认背景图。
+   */
+  src: string;
+  /**
+   * 同一 src 对应的渲染方式（同一 src 内可能既有 <img> 也有 CSS 背景，
+   * 这里只取首个命中为代表，避免 tab 缩略图重复）。
+   */
+  kind: ChangeImageTarget['kind'];
+  /**
+   * 同一图片的所有 DOM 目标（>=1），替换时对全部目标生效。
+   */
+  targets: ChangeImageTarget[];
+  /**
+   * 业务方 image 属性解析出的生图参数片段；缺失字段由默认值补齐。
    */
   image?: Partial<GenerateImageParams>;
+}
+
+/**
+ * 组件级「换图」事件载荷。
+ * 点击当前组件右上角的「换图」按钮时，由 image-marker 发出。
+ * 弹框拿到 payload 后：先把 entries 渲染成 tab 列表让用户选图，
+ * 选中某张图后再展示 AI换图 / 本地图片修改 详情；替换时一对多。
+ */
+export interface ChangeImageGroupPayload {
+  /**
+   * 当前组件容器根 [data-image-component-id="xxx"] 选择器，
+   * 持久化在任务里用于刷新后还原组件上下文。
+   */
+  componentSelector: string;
+  /**
+   * 当前组件的展示名（取自 data-image-component / data-component-name
+   * 或 .layout-content 直系子节点 fallback），仅用于弹框标题展示。
+   */
+  componentName: string;
+  /** 当前组件内按 src 去重后的全部可替换图片 */
+  entries: ChangeImageEntry[];
 }
 
 /** 生图事件的 payload 类型映射 */
@@ -175,7 +209,7 @@ export interface ImageEventPayloads {
   [ImageEvents.TASK_REMOVE]: { taskId: string };
   [ImageEvents.APPLY_BACKGROUND]: { taskId: string };
   [ImageEvents.CLEAR_BACKGROUND]: Record<string, never>;
-  [ImageEvents.CHANGE_IMAGE]: ChangeImagePayload;
+  [ImageEvents.CHANGE_IMAGE]: ChangeImageGroupPayload;
 }
 
 /** AI 生图相关事件总线（与 eventBus 共用同一个底层实例，仅做命名分组） */

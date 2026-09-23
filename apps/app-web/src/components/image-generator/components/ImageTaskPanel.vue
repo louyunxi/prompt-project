@@ -16,7 +16,12 @@
               删除 → imageStore.removeTask（仅清记录，不删本地文件）。
 -->
 <template>
-  <a-card class="task-panel" size="small" :bordered="true">
+  <a-card
+    class="task-panel"
+    :class="{ 'task-panel--collapsed': isCollapsed }"
+    size="small"
+    :bordered="true"
+  >
     <template #title>
       <a-space :size="6" align="center">
         <a-tag :color="status.color">{{ status.label }}</a-tag>
@@ -41,8 +46,10 @@
             @click="toggleCollapse"
           >
             <template #icon>
-              <DownOutlined v-if="isCollapsed" />
-              <UpOutlined v-else />
+              <UpOutlined
+                class="task-panel__collapse-icon"
+                :class="{ 'task-panel__collapse-icon--down': isCollapsed }"
+              />
             </template>
           </a-button>
         </a-tooltip>
@@ -58,41 +65,38 @@
       </a-space>
     </template>
 
-    <!-- 超时失败且被折叠：展示摘要提示 -->
-    <div
-      v-if="isCollapsed && isTimeoutFailed"
-      class="task-panel__collapsed-hint"
-    >
-      <ClockCircleOutlined />
-      <span>
-        任务已超时（超过 10 分钟未返回，系统已自动判定为失败）。
-        点击右上角「展开详情」可查看参数或重新生图；删除任务不会影响本地已保存的图片。
-      </span>
-    </div>
+    <!-- 收起/展开动画基于 grid-template-rows，内容始终在 DOM 中渲染 -->
+    <div class="task-panel__body">
+      <!-- 超时失败摘要提示 -->
+      <div v-if="isTimeoutFailed" class="task-panel__collapsed-hint">
+        <ClockCircleOutlined />
+        <span>
+          任务已超时（超过 10 分钟未返回，系统已自动判定为失败）。
+          点击右上角「展开详情」可查看参数或重新生图；删除任务不会影响本地已保存的图片。
+        </span>
+      </div>
 
-    <!-- 展开后的主体内容 -->
-    <div v-show="!isCollapsed">
       <!-- 参数编辑区（与全局新建任务弹框复用同一表单组件） -->
       <ImageTaskForm
         class="task-panel__form"
         :params="task.params"
         :disabled="isGenerating"
+        :hide-refs="task.status === 'success'"
         @update:params="
           (p) => imageStore.updateTask(task.id, { params: p })
         "
       />
 
-      <!-- 操作按钮区 -->
+      <!-- 操作按钮区：历史已完成任务不提供「重新生图」 -->
       <div class="task-panel__actions">
-        <a-space>
-          <a-button
-            type="primary"
-            :loading="isGenerating"
-            @click="handleStart"
-          >
-            {{ task.status === 'success' ? '重新生图' : '生图' }}
-          </a-button>
-        </a-space>
+        <a-button
+          v-if="task.status !== 'success'"
+          type="primary"
+          :loading="isGenerating"
+          @click="handleStart"
+        >
+          {{ task.status === 'failed' ? '重新生图' : '生图' }}
+        </a-button>
         <span v-if="task.status === 'success'" class="task-panel__cost">
           用时 {{ formatDuration(task.result?.elapsedMs ?? 0) }}
         </span>
@@ -101,16 +105,6 @@
       <!-- 预览 / 错误 -->
       <div v-if="task.status === 'success' && task.result" class="task-panel__preview">
         <div class="task-panel__preview-bar">
-          <a-tooltip title="重新下载原图到浏览器下载目录（未压缩）">
-            <a-button
-              size="small"
-              :loading="downloading"
-              @click="handleDownload"
-            >
-              <template #icon><DownloadOutlined /></template>
-              下载
-            </a-button>
-          </a-tooltip>
           <span class="task-panel__preview-tip">点击图片可查看大图</span>
         </div>
         <a-image
@@ -124,31 +118,42 @@
         </div>
       </div>
 
-      <!-- 本地保存信息：成功保存后展示在预览下方 -->
+      <!-- 成功：下载按钮 + 已本地保存信息，一行展示 -->
       <div
-        v-if="task.localSaved"
+        v-if="task.status === 'success' && task.result"
         class="task-panel__local"
       >
-        <a-space :size="6" align="center">
-          <CheckCircleFilled style="color: #52c41a" />
-          <span class="task-panel__local-label">已本地保存</span>
-          <a-tooltip title="点击复制完整路径（浏览器安全限制不支持直接打开所在文件夹）">
-            <span
-              class="task-panel__local-path"
-              @click="copyLocalPath"
-            >
-              {{ task.localSaved.folderName }}/{{ task.localSaved.fileName }}
+        <a-space :size="6" align="center" wrap>
+          <a-button
+            size="small"
+            :loading="downloading"
+            @click="handleDownload"
+          >
+            <template #icon><DownloadOutlined /></template>
+            下载
+          </a-button>
+          <template v-if="task.localSaved">
+            <CheckCircleFilled style="color: #52c41a" />
+            <span class="task-panel__local-label">已本地保存</span>
+            <a-tooltip title="点击复制完整路径（浏览器安全限制不支持直接打开所在文件夹）">
+              <span
+                class="task-panel__local-path"
+                @click="copyLocalPath"
+              >
+                {{ task.localSaved.folderName }}/{{ task.localSaved.fileName }}
+              </span>
+            </a-tooltip>
+            <a-tooltip title="复制完整路径">
+              <CopyOutlined
+                class="task-panel__copy"
+                @click="copyLocalPath"
+              />
+            </a-tooltip>
+            <span class="task-panel__local-meta">
+              {{ formatBytes(task.localSaved.bytes) }} · {{ task.localSaved.width }}×{{ task.localSaved.height }}
             </span>
-          </a-tooltip>
-          <a-tooltip title="复制完整路径">
-            <CopyOutlined
-              class="task-panel__copy"
-              @click="copyLocalPath"
-            />
-          </a-tooltip>
-          <span class="task-panel__local-meta">
-            {{ formatBytes(task.localSaved.bytes) }} · {{ task.localSaved.width }}×{{ task.localSaved.height }}
-          </span>
+          </template>
+          <span v-else class="task-panel__local-meta">未保存到本地</span>
         </a-space>
       </div>
 
@@ -176,7 +181,6 @@ import {
   CopyOutlined,
   DeleteOutlined,
   DownloadOutlined,
-  DownOutlined,
   UpOutlined,
 } from '@ant-design/icons-vue';
 import { message } from 'ant-design-vue';
@@ -431,8 +435,54 @@ async function copyLocalPath() {
     min-height: 34px;
   }
 
+  /* body 用 max-height 过渡实现收起/展开动画（收起时高度为 0）。
+     不使用 grid-template-rows: 1fr/0fr 方案：
+     1. antd 的 clearfix 伪元素（::before/::after，display: table）在
+        display: grid 下会成为额外 grid item，撑出多余轨道导致高度收缩失败；
+     2. Chrome 对 fr 单位的收起方向不插值（会卡住后跳变），动画不平滑。
+     改用 max-height 过渡 + overflow: hidden，展开态上限需大于内容实际高度。 */
   :deep(.ant-card-body) {
+    display: block;
+    max-height: 1000px;
+    overflow: hidden;
     padding: 8px 10px 10px;
+    opacity: 1;
+    transition:
+      max-height 0.3s ease-in-out,
+      padding 0.3s ease-in-out,
+      opacity 0.3s ease-in-out;
+  }
+
+  /* 禁用 antd clearfix 伪元素，避免其参与布局 */
+  :deep(.ant-card-body::before),
+  :deep(.ant-card-body::after) {
+    display: none;
+    content: none;
+  }
+
+  &__body {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* 收起态：body 高度收缩为 0 */
+  &.task-panel--collapsed {
+    :deep(.ant-card-body) {
+      max-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      opacity: 0;
+    }
+  }
+
+  /* 收起/展开箭头：小图标 + 收起时旋转 180° 动画 */
+  &__collapse-icon {
+    font-size: 12px;
+    transition: transform 0.25s ease;
+  }
+
+  &__collapse-icon--down {
+    transform: rotate(180deg);
   }
 
   &__name {
@@ -507,9 +557,9 @@ async function copyLocalPath() {
   &__local {
     margin-top: 8px;
     padding: 6px 8px;
-    border: 1px solid #b7eb8f;
-    background: #f6ffed;
+    border: 1px solid var(--line-color);
     border-radius: 6px;
+    background: #fafafa;
     font-size: 12px;
     color: var(--ink-color-2);
   }

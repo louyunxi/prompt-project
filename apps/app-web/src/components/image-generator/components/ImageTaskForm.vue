@@ -13,8 +13,21 @@
     - disabled：生成中时整体禁用。
 -->
 <template>
-  <a-form layout="vertical" :disabled="disabled" class="image-task-form">
-    <a-form-item label="提示词">
+  <!--
+    layout="horizontal"：label 与控件并排（官方水平布局）。
+    每个 form-item 通过 :label-col 固定 label 宽度，控件自动占满剩余宽度；
+    窄列（模型/尺寸、放大/画质/格式）label 用小宽度，避免挤占控件。
+  -->
+  <a-form
+    layout="horizontal"
+    label-align="left"
+    :disabled="disabled"
+    class="image-task-form"
+  >
+    <a-form-item
+      label="提示词"
+      :label-col="{ style: { width: '64px' } }"
+    >
       <a-textarea
         :value="params.prompt"
         :rows="3"
@@ -26,7 +39,10 @@
 
     <a-row :gutter="8">
       <a-col :span="14">
-        <a-form-item label="模型">
+        <a-form-item
+          label="模型"
+          :label-col="{ style: { width: '48px' } }"
+        >
           <a-select
             :value="params.model"
             :options="modelOptions"
@@ -35,7 +51,10 @@
         </a-form-item>
       </a-col>
       <a-col :span="10">
-        <a-form-item label="尺寸">
+        <a-form-item
+          label="尺寸"
+          :label-col="{ style: { width: '48px' } }"
+        >
           <a-select
             :value="params.size"
             :options="sizeOptions"
@@ -47,7 +66,10 @@
 
     <a-row :gutter="8">
       <a-col :span="8">
-        <a-form-item label="放大">
+        <a-form-item
+          label="放大"
+          :label-col="{ style: { width: '48px' } }"
+        >
           <a-select
             :value="params.upscale"
             :options="upscaleOptions"
@@ -56,7 +78,10 @@
         </a-form-item>
       </a-col>
       <a-col :span="8">
-        <a-form-item label="画质">
+        <a-form-item
+          label="画质"
+          :label-col="{ style: { width: '48px' } }"
+        >
           <a-select
             :value="params.quality"
             :options="qualityOptions"
@@ -65,7 +90,10 @@
         </a-form-item>
       </a-col>
       <a-col :span="8">
-        <a-form-item label="格式">
+        <a-form-item
+          label="格式"
+          :label-col="{ style: { width: '48px' } }"
+        >
           <a-select
             :value="params.outputFormat"
             :options="outputFormatOptions"
@@ -75,9 +103,12 @@
       </a-col>
     </a-row>
 
-    <a-form-item class="image-task-form__transparent">
+    <a-form-item
+      label="透明背景"
+      class="image-task-form__transparent"
+      :label-col="{ style: { width: '72px' } }"
+    >
       <a-space :size="8" align="center">
-        <span class="image-task-form__label">透明背景</span>
         <a-switch
           :checked="params.transparent"
           :disabled="!modelSupportsTransparent"
@@ -93,7 +124,11 @@
     </a-form-item>
 
     <!-- 参考图（图生图）：上传后走异步图生图接口 + 3 秒轮询 -->
-    <a-form-item class="image-task-form__refs">
+    <a-form-item
+      v-if="!hideRefs"
+      class="image-task-form__refs"
+      :label-col="{ style: { width: '96px' } }"
+    >
       <template #label>
         <span class="image-task-form__refs-label">
           参考图（图生图）
@@ -193,6 +228,8 @@ import { formatBytes } from '@/utils/image-save';
 const props = defineProps<{
   params: GenerateImageParams;
   disabled?: boolean;
+  /** 隐藏参考图板块（历史已完成任务查看参数时无需展示上传器） */
+  hideRefs?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -352,31 +389,19 @@ function removeReference(id: string): void {
     margin-bottom: 6px;
   }
 
-  /* label 与控件并排（水平布局），垂直更紧凑 */
+  /* 多行控件（textarea）时 label 顶部对齐 */
   :deep(.ant-form-item-row) {
-    display: flex;
     align-items: flex-start;
-    gap: 8px;
   }
 
-  :deep(.ant-form-item-label) {
-    /* 宽度按内容自适应，避免挤占窄列（放大/画质/格式）内的控件 */
-    flex: 0 0 auto;
-    padding: 0;
-    text-align: left;
-
-    > label {
-      margin: 0;
-      height: 32px;
-      line-height: 32px;
-      white-space: nowrap;
-      font-size: 12px;
-      color: var(--ink-color-3);
-    }
+  :deep(.ant-form-item-label > label) {
+    font-size: 12px;
+    color: var(--ink-color-3);
+    white-space: nowrap;
   }
 
+  /* 水平布局下控件占满剩余宽度 */
   :deep(.ant-form-item-control) {
-    flex: 1 1 auto;
     min-width: 0;
   }
 
@@ -384,23 +409,7 @@ function removeReference(id: string): void {
     margin-bottom: 0;
   }
 
-  &__label {
-    font-size: 13px;
-    color: var(--ink-color-2);
-  }
-
-  /* 参考图 label 较长（图生图 + 容量提示），单独放宽并允许换行 */
-  &__refs {
-    :deep(.ant-form-item-label) {
-      flex-basis: 96px;
-
-      > label {
-        height: auto;
-        line-height: 1.4;
-      }
-    }
-  }
-
+  /* 参考图 label 较长（图生图 + 容量提示），竖排小字 */
   &__refs-label {
     display: flex;
     flex-direction: column;
@@ -422,8 +431,8 @@ function removeReference(id: string): void {
 
   &__item {
     position: relative;
-    width: 56px;
-    height: 56px;
+    width: 80px;
+    height: 80px;
     border-radius: 6px;
     border: 1px solid var(--line-color, #e5e7eb);
     overflow: hidden;
@@ -510,8 +519,8 @@ function removeReference(id: string): void {
   }
 
   &__add {
-    width: 56px;
-    height: 56px;
+    width: 80px;
+    height: 80px;
     display: flex;
     flex-direction: column;
     align-items: center;

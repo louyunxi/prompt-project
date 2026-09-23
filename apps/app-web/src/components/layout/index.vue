@@ -107,11 +107,10 @@
       <ImageGenerator />
     </AppDrawer>
 
-    <!-- 全局新建生图任务弹框（页面「换图」小标签触发） -->
+    <!-- 全局图片替换弹框（页面「换图」小标签触发），弹框内完成生图/替换 -->
     <ImageCreateModal
       v-model:open="createModalOpen"
       :payload="changeImagePayload"
-      @created="handleTaskCreated"
     />
   </a-layout>
 </template>
@@ -141,11 +140,9 @@ import AppDrawer from '@/components/drawer/index.vue';
 import ImageGenerator from '@/components/image-generator/index.vue';
 import ImageCreateModal from '@/components/image-generator/components/ImageCreateModal.vue';
 import { startImageMarker } from '@/utils/image-marker';
-import { reapplyImageReplacements } from '@/utils/image-apply';
-import type {
-  ChangeImagePayload,
-  ChangeImageTarget,
-} from '@/utils/event-bus';
+import { reapplyImageReplacements, type ImageReplaceItem } from '@/utils/image-apply';
+import { getChangeTargets } from '@/store/modules/image';
+import type { ChangeImageGroupPayload } from '@/utils/event-bus';
 
 const route = useRoute();
 const router = useRouter();
@@ -158,7 +155,7 @@ const drawerOpen = ref(false);
 
 /** 全局「换图」新建任务弹框状态 */
 const createModalOpen = ref(false);
-const changeImagePayload = ref<ChangeImagePayload | null>(null);
+const changeImagePayload = ref<ChangeImageGroupPayload | null>(null);
 /** 图片替换标记探针的停止函数 */
 let stopImageMarkerFn: (() => void) | null = null;
 
@@ -209,7 +206,8 @@ onMounted(() => {
       },
     ),
     // 页面图片「换图」小标签点击 → 打开全局新建任务弹框
-    imageEventBus.on<ChangeImagePayload>(
+    // 载荷是组件级聚合：componentSelector + componentName + entries (按 src 去重后)
+    imageEventBus.on<ChangeImageGroupPayload>(
       ImageEvents.CHANGE_IMAGE,
       (payload) => {
         changeImagePayload.value = payload;
@@ -229,30 +227,24 @@ onBeforeUnmount(() => {
   stopImageMarkerFn = null;
 });
 
-/**
- * 全局弹框点击「生图」后：
- * 任务已创建并直接发起生图（路径守卫在弹框内完成），
- * 这里仅关闭弹框并展开右侧生图管理抽屉，让用户实时看到任务进度。
- */
-function handleTaskCreated() {
-  createModalOpen.value = false;
-  drawerOpen.value = true;
-}
-
 /* ---------- 刷新后：本地图片地址恢复 + DOM 替换重放 ---------- */
 
 /**
  * 收集所有「换图任务」的替换记录：
- * 任务按 createdAt 倒序存储，这里反转为正序灌入，
- * 使同一目标的最新任务在 Map 中最后写入、最终生效。
+ * - 单个任务可能持有多个目标（同一 src 在组件内被多 DOM 复用时的一对多记录），
+ *   这里把每个目标各自展开成一条 ImageReplaceItem，确保 reapplyImageReplacements
+ *   按 selector+kind 重放时覆盖全部目标 DOM；
+ * - 任务按 createdAt 倒序存储，flatMap 后整体反转，使同一目标最新的任务
+ *   在 Map 中最后写入、最终生效；
+ * - 通过 getChangeTargets 自动兼容旧的单字段 changeTarget 数据。
  */
-function collectReplaceItems() {
+function collectReplaceItems(): ImageReplaceItem[] {
   return imageStore.tasks
-    .filter((t) => t.changeTarget && t.localSaved?.localUrl)
-    .map((t) => ({
-      ...(t.changeTarget as ChangeImageTarget),
-      url: t.localSaved!.localUrl as string,
-    }))
+    .filter((t) => t.localSaved?.localUrl)
+    .flatMap((t) => {
+      const url = t.localSaved!.localUrl as string;
+      return getChangeTargets(t).map((target) => ({ ...target, url }));
+    })
     .reverse();
 }
 
