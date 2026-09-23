@@ -1,7 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 
 const categoryNames: Record<string, string> = {
-  layout: '页面布局',
   map: '地图',
   typography: '排版',
   modal: '弹框布局',

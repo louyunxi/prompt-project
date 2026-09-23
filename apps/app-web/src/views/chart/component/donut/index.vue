@@ -308,18 +308,34 @@ function handleTabClick(index: number) {
   refreshChart();
 }
 
-/** 尺寸自适应（防抖） */
+/**
+ * 尺寸自适应（防抖）：通过 ResizeObserver 监听 chartRef 容器尺寸变化，
+ * 触发 echarts resize。覆盖三种场景：
+ *   1. 窗口缩放（chartRef 尺寸跟着变）
+ *   2. DOM 被 appendChild 到新容器（父节点变化触发 reflow）
+ *   3. 父容器 grid 重排（如主应用把组件移到 PcCompCard slot）
+ * 比 window.resize 监听更准确；组件销毁时 disconnect 释放 observer。
+ */
 const handleResize = debounce(() => {
   chartInstance?.resize();
 }, 200);
 
+/** chartRef 尺寸变化观察器 */
+let resizeObserver: ResizeObserver | null = null;
+
 onMounted(() => {
-  nextTick(initChart);
-  window.addEventListener('resize', handleResize);
+  nextTick(() => {
+    initChart();
+    if (chartRef.value) {
+      resizeObserver = new ResizeObserver(handleResize);
+      resizeObserver.observe(chartRef.value);
+    }
+  });
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleResize);
+  resizeObserver?.disconnect();
+  resizeObserver = null;
   chartInstance?.dispose();
   chartInstance = null;
 });
@@ -393,9 +409,9 @@ onBeforeUnmount(() => {
 
   &__chart-wrap {
     position: relative;
-    width: 300px;
-    height: 300px;
-    flex-shrink: 0;
+    flex: 0 0 60%;
+    width: 60%;
+    aspect-ratio: 1 / 1;
   }
 
   &__chart {
@@ -438,7 +454,7 @@ onBeforeUnmount(() => {
 
   &__list {
     flex: 1;
-    min-width: 0;
+    min-width: 145px;
   }
 
   &__item {
@@ -466,6 +482,73 @@ onBeforeUnmount(() => {
 
   &__item-num {
     font-weight: bold;
+  }
+
+  // 响应式字号：随视口缩小逐级降低，最小 12px
+  @media (max-width: 1200px) {
+    &__tab {
+      font-size: 14px;
+    }
+
+    &__center-title {
+      font-size: 14px;
+    }
+
+    &__center-num {
+      font-size: 24px;
+    }
+
+    &__center-unit {
+      font-size: 13px;
+    }
+
+    &__item {
+      font-size: 13px;
+    }
+  }
+
+  @media (max-width: 992px) {
+    &__tab {
+      font-size: 13px;
+    }
+
+    &__center-title {
+      font-size: 13px;
+    }
+
+    &__center-num {
+      font-size: 20px;
+    }
+
+    &__center-unit {
+      font-size: 12px;
+    }
+
+    &__item {
+      font-size: 12px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    &__tab {
+      font-size: 12px;
+    }
+
+    &__center-title {
+      font-size: 12px;
+    }
+
+    &__center-num {
+      font-size: 16px;
+    }
+
+    &__center-unit {
+      font-size: 12px;
+    }
+
+    &__item {
+      font-size: 12px;
+    }
   }
 }
 </style>

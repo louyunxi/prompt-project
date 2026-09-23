@@ -57,12 +57,12 @@ interface ChartMetric {
 
 /** mock 指标数据（对应源组件 plateMetricGroupList[0].plateMetricList.slice(0, 6).reverse()） */
 const mockMetricList: ChartMetric[] = [
-  { metricName: '元素一', metricValue: 213.5, metricUnit: '单位' },
-  { metricName: '元素二', metricValue: 11.9, metricUnit: '单位' },
-  { metricName: '元素三', metricValue: 24.1, metricUnit: '单位' },
-  { metricName: '元素四', metricValue: 152.8, metricUnit: '单位' },
+  { metricName: '元素一', metricValue: 213, metricUnit: '单位' },
+  { metricName: '元素二', metricValue: 11, metricUnit: '单位' },
+  { metricName: '元素三', metricValue: 24, metricUnit: '单位' },
+  { metricName: '元素四', metricValue: 152, metricUnit: '单位' },
   { metricName: '元素五', metricValue: 86.3, metricUnit: '单位' },
-  { metricName: '元素六', metricValue: 128.6, metricUnit: '单位' },
+  { metricName: '元素六', metricValue: 128, metricUnit: '单位' },
 ];
 
 /** echarts 渲染所需颜色（从 CSS 变量读取） */
@@ -226,18 +226,34 @@ function refreshChart(colors: BarColors) {
   chartInstance.setOption(chartOpts);
 }
 
-/** 尺寸自适应（防抖） */
+/**
+ * 尺寸自适应（防抖）：通过 ResizeObserver 监听 chartRef 容器尺寸变化，
+ * 触发 echarts resize。覆盖三种场景：
+ *   1. 窗口缩放（chartRef 尺寸跟着变）
+ *   2. DOM 被 appendChild 到新容器（父节点变化触发 reflow）
+ *   3. 父容器 grid 重排（如主应用把组件移到 PcCompCard slot）
+ * 比 window.resize 监听更准确；组件销毁时 disconnect 释放 observer。
+ */
 const handleResize = debounce(() => {
   chartInstance?.resize();
 }, 200);
 
+/** chartRef 尺寸变化观察器 */
+let resizeObserver: ResizeObserver | null = null;
+
 onMounted(() => {
-  nextTick(initChart);
-  window.addEventListener('resize', handleResize);
+  nextTick(() => {
+    initChart();
+    if (chartRef.value) {
+      resizeObserver = new ResizeObserver(handleResize);
+      resizeObserver.observe(chartRef.value);
+    }
+  });
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleResize);
+  resizeObserver?.disconnect();
+  resizeObserver = null;
   chartInstance?.dispose();
   chartInstance = null;
 });

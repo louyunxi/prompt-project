@@ -52,16 +52,38 @@
         </div>
 
         <div class="header-right">
-          <div class="theme-chip">
-            <span class="theme-label">
-              {{ themeStore.isDark ? '深色模式' : '浅色模式' }}
-            </span>
-            <a-switch
-              size="small"
-              :checked="themeStore.isDark"
-              @change="handleThemeChange"
-            />
-          </div>
+          <a-space :size="12">
+            <!-- 生图管理入口：右上角按钮 + 角标（生成中数量） -->
+            <a-tooltip title="打开生图管理（生成中的任务会在这里实时提示）">
+              <a-badge
+                :key="imageStore.generatingCount"
+                :count="imageStore.generatingCount"
+                :dot="false"
+                :offset="[-4, 4]"
+                :number-style="{ backgroundColor: '#015ca7' }"
+              >
+                <a-button
+                  type="default"
+                  size="middle"
+                  @click="drawerOpen = true"
+                >
+                  <template #icon><PictureOutlined /></template>
+                  生图管理
+                </a-button>
+              </a-badge>
+            </a-tooltip>
+
+            <div class="theme-chip">
+              <span class="theme-label">
+                {{ themeStore.isDark ? '深色模式' : '浅色模式' }}
+              </span>
+              <a-switch
+                size="small"
+                :checked="themeStore.isDark"
+                @change="handleThemeChange"
+              />
+            </div>
+          </a-space>
         </div>
       </a-layout-header>
 
@@ -70,16 +92,39 @@
         <router-view />
       </a-layout-content>
     </a-layout>
+
+    <!-- 生图管理抽屉（全局单例）。
+         force-render：页面加载即挂载内容，保证刷新后恢复轮询的任务
+         完成时，自动保存 / DOM 替换监听无需先手动打开抽屉就已在线。 -->
+    <AppDrawer
+      v-model:open="drawerOpen"
+      title="生图管理"
+      placement="right"
+      :width="640"
+      :destroy-on-close="false"
+      :force-render="true"
+    >
+      <ImageGenerator />
+    </AppDrawer>
+
+    <!-- 全局新建生图任务弹框（页面「换图」小标签触发） -->
+    <ImageCreateModal
+      v-model:open="createModalOpen"
+      :payload="changeImagePayload"
+      @created="handleTaskCreated"
+    />
   </a-layout>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { message } from 'ant-design-vue';
 import { useThemeStore } from '@/store/modules/theme';
+import { useImageStore } from '@/store/modules/image';
+import { ImageEvents, imageEventBus } from '@/utils/event-bus';
 import {
   HomeOutlined,
-  LayoutOutlined,
   EnvironmentOutlined,
   AlignLeftOutlined,
   MessageOutlined,
@@ -88,16 +133,34 @@ import {
   AppstoreOutlined,
   BgColorsOutlined,
   FontColorsOutlined,
+  PictureOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
 } from '@ant-design/icons-vue';
+import AppDrawer from '@/components/drawer/index.vue';
+import ImageGenerator from '@/components/image-generator/index.vue';
+import ImageCreateModal from '@/components/image-generator/components/ImageCreateModal.vue';
+import { startImageMarker } from '@/utils/image-marker';
+import { reapplyImageReplacements } from '@/utils/image-apply';
+import type {
+  ChangeImagePayload,
+  ChangeImageTarget,
+} from '@/utils/event-bus';
 
 const route = useRoute();
 const router = useRouter();
 const themeStore = useThemeStore();
+const imageStore = useImageStore();
 
 const collapsed = ref(false);
 const selectedKeys = ref<string[]>([]);
+const drawerOpen = ref(false);
+
+/** 全局「换图」新建任务弹框状态 */
+const createModalOpen = ref(false);
+const changeImagePayload = ref<ChangeImagePayload | null>(null);
+/** 图片替换标记探针的停止函数 */
+let stopImageMarkerFn: (() => void) | null = null;
 
 const pageTitle = computed(() => (route.meta?.title as string) || '');
 
@@ -111,6 +174,128 @@ onMounted(() => {
   updateMenuState(route.path);
 });
 
+/**
+ * 订阅 imageEventBus，在全局弹出 toast。
+ * 这里把「生图任务开始 / 完成 / 失败」做成全局可见提示，
+ * 任何页面（包括没挂载 ImageGenerator 抽屉的页面）都能感知。
+ */
+const offFns: Array<() => void> = [];
+
+onMounted(() => {
+  offFns.push(
+    imageEventBus.on<{ taskId: string }>(ImageEvents.TASK_START, (e) => {
+      const task = imageStore.tasks.find((t) => t.id === e.taskId);
+      message.info(`开始生图：${task?.name ?? e.taskId}`);
+    }),
+    imageEventBus.on<{ taskId: string; elapsedMs: number }>(
+      ImageEvents.TASK_COMPLETE,
+      (e) => {
+        const task = imageStore.tasks.find((t) => t.id === e.taskId);
+        const seconds = (e.elapsedMs / 1000).toFixed(1);
+        message.success(
+          `生图完成：${task?.name ?? e.taskId}（耗时 ${seconds}s）`,
+          4,
+        );
+      },
+    ),
+    imageEventBus.on<{ taskId: string; error: string }>(
+      ImageEvents.TASK_FAIL,
+      (e) => {
+        const task = imageStore.tasks.find((t) => t.id === e.taskId);
+        message.error(
+          `生图失败：${task?.name ?? e.taskId}（${e.error}）`,
+          5,
+        );
+      },
+    ),
+    // 页面图片「换图」小标签点击 → 打开全局新建任务弹框
+    imageEventBus.on<ChangeImagePayload>(
+      ImageEvents.CHANGE_IMAGE,
+      (payload) => {
+        changeImagePayload.value = payload;
+        createModalOpen.value = true;
+      },
+    ),
+  );
+
+  // 启动图片替换标记探针：扫描 views 主内容区所有渲染图片的 DOM
+  stopImageMarkerFn = startImageMarker('.layout-content');
+});
+
+onBeforeUnmount(() => {
+  offFns.forEach((off) => off());
+  offFns.length = 0;
+  stopImageMarkerFn?.();
+  stopImageMarkerFn = null;
+});
+
+/**
+ * 全局弹框点击「生图」后：
+ * 任务已创建并直接发起生图（路径守卫在弹框内完成），
+ * 这里仅关闭弹框并展开右侧生图管理抽屉，让用户实时看到任务进度。
+ */
+function handleTaskCreated() {
+  createModalOpen.value = false;
+  drawerOpen.value = true;
+}
+
+/* ---------- 刷新后：本地图片地址恢复 + DOM 替换重放 ---------- */
+
+/**
+ * 收集所有「换图任务」的替换记录：
+ * 任务按 createdAt 倒序存储，这里反转为正序灌入，
+ * 使同一目标的最新任务在 Map 中最后写入、最终生效。
+ */
+function collectReplaceItems() {
+  return imageStore.tasks
+    .filter((t) => t.changeTarget && t.localSaved?.localUrl)
+    .map((t) => ({
+      ...(t.changeTarget as ChangeImageTarget),
+      url: t.localSaved!.localUrl as string,
+    }))
+    .reverse();
+}
+
+/** 用任务中已恢复的本地图片地址全量重放 DOM 替换 */
+function syncLocalReplacements(): void {
+  reapplyImageReplacements(collectReplaceItems());
+}
+
+/**
+ * 首次用户手势兜底：刷新后目录权限若处于 prompt 状态，
+ * 静默恢复拿不到本地文件，在第一次点击 / 按键时（合规手势链路）
+ * 申请只读权限、重建本地 URL，然后重放替换。只执行一次。
+ */
+function handleFirstGesture(): void {
+  window.removeEventListener('pointerdown', handleFirstGesture);
+  window.removeEventListener('keydown', handleFirstGesture);
+  void (async () => {
+    await imageStore.hydrateLocalSavedUrls(true);
+    syncLocalReplacements();
+  })();
+}
+
+// 任务的本地 URL 恢复完成后（store 异步 hydrate / 手势兜底）自动重放
+watch(
+  () =>
+    imageStore.tasks
+      .map((t) => `${t.id}:${t.localSaved?.localUrl ?? ''}`)
+      .join('|'),
+  () => syncLocalReplacements(),
+);
+
+onMounted(() => {
+  // 立即重放已恢复的部分；其余的等 store hydrate 完成后由 watcher 重放
+  syncLocalReplacements();
+  window.addEventListener('pointerdown', handleFirstGesture);
+  window.addEventListener('keydown', handleFirstGesture);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('pointerdown', handleFirstGesture);
+  window.removeEventListener('keydown', handleFirstGesture);
+});
+
 interface MenuItem {
   key: string;
   title: string;
@@ -119,7 +304,6 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { key: '', title: '首页', icon: HomeOutlined },
-  { key: 'layout', title: '页面布局', icon: LayoutOutlined },
   { key: 'map', title: '地图', icon: EnvironmentOutlined },
   { key: 'typography', title: '排版', icon: AlignLeftOutlined },
   { key: 'modal', title: '弹框布局', icon: MessageOutlined },

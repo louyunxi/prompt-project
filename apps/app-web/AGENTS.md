@@ -190,24 +190,85 @@ apps/app-web/
 ### 8.9 特别规则
 
 - 1.所有 `views/chart/component/*` 组件**不要给整个组件（根元素）设置 `background` 与 `box-shadow`**。**局部的可以有**：例如 ECharts tooltip 的 `backgroundColor`、单个柱体 / 元素的配色与阴影等局部效果允许。
-- 
 
-## 9. 常用命令
+### 8.10 响应式规范
 
-```bash
-# 子系统（在 apps/app-web 目录）
-pnpm start      # 启动开发服务器（https://localhost:8889）
-pnpm build      # 生产构建（输出 dist/）
-pnpm deploy     # 构建并 SSH 部署
-pnpm preview    # 预览构建产物
+- 所有 `src/views/<category>/component/*/` 组件**尽可能考虑响应式**，通过**媒体查询**控制不同屏幕的兼容性。
+- 组件样式需保证在以下三档屏幕下**展示大致相同**（布局不塌陷、文字/图形不错位、整体观感一致）：
+  - `≤1280px`：小屏笔记本
+  - `1281px – 1919px`：常规笔记本 / 桌面
+  - `≥1920px`：大屏显示器
 
-# 工程级（在根目录）
-pnpm bootstrap            # 安装依赖
-pnpm start                # 启动（gtask，多应用）
-pnpm build                # 构建
-pnpm publish              # 部署
-pnpm format               # 全部格式检查
+### 8.11 跨项目复制组件规范
+
+复制 / 参考其他项目，在 `apps\app-web\src\views\**\component\**` 下实现相同功能组件时，必须遵守：
+
+1. **完全还原功能效果**：组件的功能与视觉效果要与源组件保持一致，尽可能还原。
+2. **不复制 API 接口**：去除源组件中的所有接口请求逻辑，改为**参考原组件数据结构模拟 mock 数据**；数据结构可**适当简化**，但字段命名要**通用**（不用业务字段名），文案标题也要**通用**（不用业务文案）。
+3. **图片物料一并拷贝**：源组件涉及到的图片物料**全部拷贝过来**，放入 `<组件目录>/assets/` 下（命名 kebab-case、易懂）。
+4. **按分类放置**：根据项目的 category 将组件放到合适的 `apps\app-web\src\views\**\` 分类目录中：
+   - ECharts 图表组件 → 放入 `apps\app-web\src\views\chart\`。
+   - 普通排版布局 → 放入 `apps\app-web\src\views\typography\`。
+   - 其余类推（背景→`background`、特效→`effect`、字体→`font`、弹框→`modal`、地图→`map` 等）。
+
+## 9. 各板块特别注意
+
+### 9.1 `views/chart` 板块（echarts 组件）
+
+**所有 `src/views/chart/component/*/index.vue` 下的 echarts 组件，必须使用 `ResizeObserver` 监听容器（`chartRef`）尺寸变化，并在 `onBeforeUnmount` 中 `disconnect()` 释放观察器。禁止只依赖 `window.resize` 事件。**
+
+**理由**：本子系统的 chart 组件经常被主应用（`apps/app-prompt` 的 `MicroContainer`）通过 qiankun 微前端 + DOM 移动的方式挂载到不同容器。`window.resize` 只在浏览器窗口缩放时触发，**无法覆盖**以下关键场景：
+
+1. 组件从隐藏容器（`hiddenContainer`）`appendChild` 到真实容器（PcCompCard slot），父节点变化触发 reflow。
+2. 主应用 grid 布局重排 / 父容器尺寸变化。
+3. 主题切换、CSS 变量更新导致容器尺寸变化。
+
+**实现模板**：
+
+```typescript
+/**
+ * 尺寸自适应（防抖）：通过 ResizeObserver 监听 chartRef 容器尺寸变化，
+ * 触发 echarts resize。覆盖三种场景：
+ *   1. 窗口缩放（chartRef 尺寸跟着变）
+ *   2. DOM 被 appendChild 到新容器（父节点变化触发 reflow）
+ *   3. 父容器 grid 重排（如主应用把组件移到 PcCompCard slot）
+ * 比 window.resize 监听更准确；组件销毁时 disconnect 释放 observer。
+ */
+const handleResize = debounce(() => {
+  chartInstance?.resize();
+}, 200);
+
+/** chartRef 尺寸变化观察器 */
+let resizeObserver: ResizeObserver | null = null;
+
+onMounted(() => {
+  nextTick(() => {
+    initChart();
+    if (chartRef.value) {
+      resizeObserver = new ResizeObserver(handleResize);
+      resizeObserver.observe(chartRef.value);
+    }
+  });
+});
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
+  chartInstance?.dispose();
+  chartInstance = null;
+});
 ```
+
+**检查清单**：每个 chart 组件新增/修改后，确认：
+
+- [ ] 有 `let resizeObserver: ResizeObserver | null = null;` 声明
+- [ ] `onMounted` 内 `initChart` 后调 `resizeObserver.observe(chartRef.value)`
+- [ ] `onBeforeUnmount` 内调 `resizeObserver?.disconnect()` 并置 `null`
+- [ ] 没有 `window.addEventListener('resize', ...)`（用 ResizeObserver 取代）
+
+### 9.2 其他板块
+
+后续新增板块如有类似「跨容器挂载 / DOM 迁移 / 父布局动态变化」的场景，应遵循 §9.1 的同等原则：用观察元素自身的 observer（如 `ResizeObserver`、`MutationObserver`）取代 window 级事件，确保在 DOM 迁移后仍能正确响应。
 
 ## 10. AI Agent 开发注意事项
 

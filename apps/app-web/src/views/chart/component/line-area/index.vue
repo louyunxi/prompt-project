@@ -366,18 +366,34 @@ function refreshChart(colors: LineAreaColors) {
   });
 }
 
-/** 尺寸自适应（防抖） */
+/**
+ * 尺寸自适应（防抖）：通过 ResizeObserver 监听 chartRef 容器尺寸变化，
+ * 触发 echarts resize。覆盖三种场景：
+ *   1. 窗口缩放（chartRef 尺寸跟着变）
+ *   2. DOM 被 appendChild 到新容器（父节点变化触发 reflow）
+ *   3. 父容器 grid 重排（如主应用把组件移到 PcCompCard slot）
+ * 比 window.resize 监听更准确；组件销毁时 disconnect 释放 observer。
+ */
 const handleResize = debounce(() => {
   chartInstance?.resize();
 }, 200);
 
+/** chartRef 尺寸变化观察器 */
+let resizeObserver: ResizeObserver | null = null;
+
 onMounted(() => {
-  nextTick(initChart);
-  window.addEventListener('resize', handleResize);
+  nextTick(() => {
+    initChart();
+    if (chartRef.value) {
+      resizeObserver = new ResizeObserver(handleResize);
+      resizeObserver.observe(chartRef.value);
+    }
+  });
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleResize);
+  resizeObserver?.disconnect();
+  resizeObserver = null;
   chartInstance?.dispose();
   chartInstance = null;
 });

@@ -219,3 +219,9 @@ docs: 文档        chore: 杂项        build/ci/workflow/types/wip/revert
 5. **内部包引用**：配置用 `@anhui/app-config`，lint 用 `@config/lint`，任务用 `@scripts/tasks`（均为 `workspace:*`）。
 6. **部署/密钥**：`deploy.config.js`、`.key.js`、`.osskey.js` 等含敏感信息，已在 `.gitignore` 中排除，**切勿提交**。
 7. **文档一致性**：根 `CLAUDE.md` 与 `README.md` 含历史模板描述，与当前实际（仅 `app-prompt`）有出入，以本文档与实际代码为准。
+8. **服务启动由用户主导（不可自动启动）**：
+   - AI Agent **不得主动启动任何 dev server / 构建服务**（`vite` / `pnpm start` / `gtask start` / `gtask appStart` / `npx vite` 等），除非用户在本轮会话中**明确指示**「启动」「跑起来」「启动服务」。
+   - 修改代码后如果需要重启服务才能生效，**只在回复中提醒用户手动重启**，不要替用户执行启动/重启命令。
+   - 调试期间需要短跑命令（如 `pnpm build`、`curl`、`Get-NetTCPConnection` 等只读/瞬时命令）是可以的；持续监听端口的长跑进程（`pnpm start` / `npx vite`）一律由用户决定。
+   - 原因：本机端口冲突严重（8888 / 8889 等），agent 自动启停极易造成旧进程未释放、端口被占、新进程 fallback 到别的端口，排查成本远高于「让用户自己按需启动」。
+   - 排查端口冲突时可以用 `Get-NetTCPConnection -LocalPort <port> -State Listen` 查 PID，但**不要直接 `Stop-Process`** 杀掉用户的进程，除非用户明确授权。

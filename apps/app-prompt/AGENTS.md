@@ -184,7 +184,58 @@ pnpm lint:prettier    # Prettier
 pnpm lint:stylelint   # Stylelint
 ```
 
-## 10. AI Agent 开发注意事项
+## 10. PC 端二级菜单公共接口规则（PcCompCard）
+
+> 本规则约束 **PC 端二级菜单所有页面** 展示子应用（`app-web`）组件的方式，确保 PC 端是子应用组件的「公共接口」。
+
+### 10.1 强制性约束
+
+`src/views/prompt/pc/**` 下凡是展示子应用组件的页面，**必须** 使用 `src/components/common/PcCompCard.vue`（`<PcCompCard>`）将每个子应用组件**一对一包裹**，**禁止** 直接把子应用 DOM 渲染到页面里、或用其他自定义容器替代。
+
+- **目的**：统一 PC 端「复制 prompt / 编辑 / 换肤」等公共操作的展示与触发面；保证后续新增子应用组件或新增二级菜单页时无需重复设计外壳。
+- **位置**：`apps/app-prompt/src/components/common/PcCompCard.vue`（**这是 PC 端子应用组件唯一的公共接口**）。
+- **适用范围**：所有 PC 端二级菜单页（`layout` / `map` / `typography` / `modal` / `effect` / `chart` / `widget` / `background` / `font` 等 9 分类）。
+- **统一入口**：[MicroContainer.vue](file:///e:/AI/prompt-project/apps/app-prompt/src/views/prompt/pc/MicroContainer.vue) 是 PC 端二级菜单**唯一的渲染器**，router 自动把所有 9 个分类路由到它；它内部按 `route.meta.category` 加载子应用并对每个组件用 `<PcCompCard>` 包裹。**不要** 在 PC 端为单个分类新增 `index.vue`（h5/uniapp 才需要，PC 端全部走 MicroContainer）。
+
+### 10.2 PcCompCard Props 契约
+
+| Prop | 必填 | 说明 |
+|------|------|------|
+| `componentName` | ✅ | 子应用组件名（kebab-case，与子应用 `views/<category>/component/<name>/` 目录名一致），用于从 `prompt.txt` 读取文本 |
+| `title` | ❌ | 中文标题；省略时回退为 `componentName`；与 `componentName` 不一致时右侧追加 `<a-tag>` 显示组件名 |
+| `api` | ❌ | 子应用通过 `props.registerApi` 注入的 `SubAppApi`（见 `apps/app-web/src/main.ts`），用于「复制 prompt」按钮；未传或 API 未就绪时按钮提示「子应用 API 尚未就绪」 |
+
+### 10.3 使用模板（参考 MicroContainer.vue）
+
+```vue
+<PcCompCard
+  v-for="comp in components"
+  :key="comp.name"
+  :component-name="comp.name"
+  :title="comp.title"
+  :api="subAppApi"
+>
+  <!-- 子应用组件挂载点：典型做法是 appendChild 子应用渲染出的节点到此容器 -->
+  <div :ref="(el) => bindMountEl(el as Element | null, comp.name)" class="..." />
+</PcCompCard>
+```
+
+子应用组件列表与 `api` 通过 `subAppApi.listComponents(category)` 动态获取（详见 `MicroContainer.vue` 的 `mountAll`），**禁止** 在主应用里硬编码子应用组件名或中文标题。
+
+### 10.4 新增 PC 端二级菜单分类的检查清单
+
+- [ ] 路由在 `src/router/index.ts` 的 `categories` 数组中追加分类名（如 `'my-cat'`），router 自动生成路由并指向 `MicroContainer.vue`。
+- [ ] 子应用新增 `apps/app-web/src/views/<category>/index.vue`（Gallery 页）和 `apps/app-web/src/views/<category>/component/<name>/index.vue`（每个组件），组件 HTML 头部加上注释 `<!-- 组件名称：MyName（中文标题） -->` 以便 `TITLE_RE` 解析。
+- [ ] **不需要** 在 PC 端新增任何 `index.vue`——`MicroContainer.vue` 会按 `route.meta.category` 自动加载对应分类。
+- [ ] 每个子应用组件的 DOM 通过 slot 容器注入（典型：子应用渲染到隐藏节点，主应用 `appendChild` 到 slot）。
+- [ ] 主应用 `MicroContainer.vue` 不需要任何改动。
+
+### 10.5 命名与引用
+
+- 文件名 / 组件名 / 类型别名一律使用 **`PcCompCard`**（`P` 大写、`Comp` 是 Component 缩写）；不要使用 `CompCard`、`PcCard` 等旧名或其他自定义命名。
+- 所有引用通过 `@/components/common/PcCompCard.vue` 导入；不要直接 import 子应用组件。
+
+## 11. AI Agent 开发注意事项
 
 1. **改代码前先读本文件与相关源文件**，不要臆测结构。
 2. **路径引用**统一使用 `@/` 别名，禁止相对深层路径 `../../`。

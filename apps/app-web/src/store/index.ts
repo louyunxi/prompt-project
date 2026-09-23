@@ -17,3 +17,4 @@ pinia.use(
 export default pinia;
 
 export * from './modules/theme';
+export * from './modules/image';
