@@ -218,13 +218,12 @@ docs: 文档        chore: 杂项        build/ci/workflow/types/wip/revert
 ## 11. AI Agent 开发注意事项
 
 1. **先读文档再动手**：根 `AGENTS.md`（本文档）+ `.clauderules` + 目标子应用 `AGENTS.md`。
-2. **工程级配置只读**：不要私自修改 `configs/lint/*`、根目录 `.*rc.js`、`pnpm-workspace.yaml`、`turbo.json`、`scripts/tasks/*` 等（除非任务明确要求）。
-3. **新增子应用**：在 `apps/` 建目录、在 `pnpm-workspace.yaml` 无需改动（已通配 `apps/*`）、在 `configs/app/index.js` 增加应用配置 key、在根 `package.json` 关注 `turbo:*` 脚本即可。
-4. **版本依赖**：`vue`/`vite`/`vue-router` 等用 catalog 统一，新增统一依赖优先走 catalog。
-5. **内部包引用**：配置用 `@anhui/app-config`，lint 用 `@config/lint`，任务用 `@scripts/tasks`（均为 `workspace:*`）。
-6. **部署/密钥**：`deploy.config.js`、`.key.js`、`.osskey.js` 等含敏感信息，已在 `.gitignore` 中排除，**切勿提交**。
-7. **文档一致性**：根 `CLAUDE.md` 与 `README.md` 含历史模板描述，与当前实际（仅 `app-prompt`）有出入，以本文档与实际代码为准。
-8. **服务启动由用户主导（不可自动启动）**：
+2. **新增子应用**：在 `apps/` 建目录、在 `pnpm-workspace.yaml` 无需改动（已通配 `apps/*`）、在 `configs/app/index.js` 增加应用配置 key、在根 `package.json` 关注 `turbo:*` 脚本即可。
+3. **版本依赖**：`vue`/`vite`/`vue-router` 等用 catalog 统一，新增统一依赖优先走 catalog。
+4. **内部包引用**：配置用 `@anhui/app-config`，lint 用 `@config/lint`，任务用 `@scripts/tasks`（均为 `workspace:*`）。
+5. **部署/密钥**：`deploy.config.js`、`.key.js`、`.osskey.js` 等含敏感信息，已在 `.gitignore` 中排除，**切勿提交**。
+6. **文档一致性**：根 `CLAUDE.md` 与 `README.md` 含历史模板描述，与当前实际（仅 `app-prompt`）有出入，以本文档与实际代码为准。
+7. **服务启动由用户主导（不可自动启动）**：
    - AI Agent **不得主动启动任何 dev server / 构建服务**（`vite` / `pnpm start` / `gtask start` / `gtask appStart` / `npx vite` 等），除非用户在本轮会话中**明确指示**「启动」「跑起来」「启动服务」。
    - 修改代码后如果需要重启服务才能生效，**只在回复中提醒用户手动重启**，不要替用户执行启动/重启命令。
    - 调试期间需要短跑命令（如 `pnpm build`、`curl`、`Get-NetTCPConnection` 等只读/瞬时命令）是可以的；持续监听端口的长跑进程（`pnpm start` / `npx vite`）一律由用户决定。

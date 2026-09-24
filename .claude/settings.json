@@ -19,7 +19,12 @@
       "Bash(rm *)",
       "Bash(cp **)",
       "Bash(mv **)",
+      "Bash(ls *)",
       "Bash(ls **)",
+      "Bash(ls -la *)",
+      "Bash(ls -la **)",
+      "Bash(ls -la * 2>&1)",
+      "Bash(ls -*)",
       "Bash(cat **)",
       "Bash(which *)",
       "Bash(for *)",
@@ -59,6 +64,12 @@
       "Write(/**)",
       "Edit(/**)",
       "Grep(/**)",
+      "Read(.claude/**)",
+      "Write(.claude/**)",
+      "Edit(.claude/**)",
+      "NotebookEdit(.claude/**)",
+      "Grep(.claude/**)",
+      "Glob(.claude/**)",
       "mcp__zentao-11-3__initZentao",
       "mcp__zentao-11-3__getProducts",
       "mcp__zentao-11-3__getStoryDetail",
@@ -90,7 +101,8 @@
       "mcp__chrome-devtools__press_key",
       "mcp__chrome-devtools__type_text",
       "mcp__chrome-devtools__wait_for"
-    ]
+    ],
+    "defaultMode": "acceptEdits"
   },
   "additionalDirectories": [
   ]
