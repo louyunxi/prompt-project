@@ -133,6 +133,7 @@ import {
   BgColorsOutlined,
   FontColorsOutlined,
   PictureOutlined,
+  EyeOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
 } from '@ant-design/icons-vue';
@@ -296,6 +297,7 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { key: '', title: '首页', icon: HomeOutlined },
+  { key: 'component-preview', title: '组件预览', icon: EyeOutlined },
   { key: 'map', title: '地图', icon: EnvironmentOutlined },
   { key: 'typography', title: '排版', icon: AlignLeftOutlined },
   { key: 'modal', title: '弹框布局', icon: MessageOutlined },

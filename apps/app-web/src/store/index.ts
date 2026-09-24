@@ -18,3 +18,4 @@ export default pinia;
 
 export * from './modules/theme';
 export * from './modules/image';
+export * from './modules/component-preview';

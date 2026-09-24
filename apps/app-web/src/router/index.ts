@@ -35,6 +35,12 @@ const router = createRouter({
           component: () => import('@/views/home/index.vue'),
           meta: { title: '首页' },
         },
+        {
+          path: 'component-preview',
+          name: 'ComponentPreview',
+          component: () => import('@/components/component-preview/index.vue'),
+          meta: { title: '组件预览' },
+        },
         ...buildCategoryRoutes(),
       ],
     },
