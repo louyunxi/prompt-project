@@ -15,7 +15,15 @@
     "format": "pnpm run lint:eslint & pnpm run lint:stylelint & pnpm run lint:prettier",
     "lint:eslint": "eslint . --cache --max-warnings 0 --fix",
     "lint:prettier": "prettier --write  \"{packages,apps,configs,scripts}/**/*.{js,json,ts,tsx,css,less,scss,vue,html,md}\"",
-    "lint:stylelint": "stylelint --fix "
+    "lint:stylelint": "stylelint --fix ",
+    "sync:ai": "node scripts/sync-ai-config.js",
+    "sync:ai:check": "node scripts/sync-ai-config.js check",
+    "sync:ai:to-trae": "node scripts/sync-ai-config.js to-trae",
+    "sync:ai:mirror": "node scripts/sync-ai-config.js mirror",
+    "sync:ai:mirror-skills": "node scripts/sync-ai-config.js mirror-skills",
+    "sync:ai:from-trae": "node scripts/sync-ai-config.js from-trae",
+    "sync:ai:apply": "node scripts/sync-ai-config.js from-trae --apply",
+    "sync:ai:force": "node scripts/sync-ai-config.js from-trae --force"
   },
   "devDependencies": {
     "@config/lint": "workspace:*",

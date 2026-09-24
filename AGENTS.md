@@ -229,3 +229,39 @@ docs: 文档        chore: 杂项        build/ci/workflow/types/wip/revert
    - 调试期间需要短跑命令（如 `pnpm build`、`curl`、`Get-NetTCPConnection` 等只读/瞬时命令）是可以的；持续监听端口的长跑进程（`pnpm start` / `npx vite`）一律由用户决定。
    - 原因：本机端口冲突严重（8888 / 8889 等），agent 自动启停极易造成旧进程未释放、端口被占、新进程 fallback 到别的端口，排查成本远高于「让用户自己按需启动」。
    - 排查端口冲突时可以用 `Get-NetTCPConnection -LocalPort <port> -State Listen` 查 PID，但**不要直接 `Stop-Process`** 杀掉用户的进程，除非用户明确授权。
+
+## 12. AI IDE 兼容（Claude Code + Trae IDE）
+
+本项目同时支持 Claude Code 与 Trae IDE 双端开发，配置互不覆盖：
+
+| 维度 | Claude Code | Trae IDE |
+|------|------------|----------|
+| 入口文档 | `CLAUDE.md`（与 `AGENTS.md` 同步） | `.trae/rules/project.md` |
+| 额外规则 | `.clauderules` | 项目规则 frontmatter（`alwaysApply` 等） |
+| Skill 目录 | `.claude/skills/` | （无显式 skills 机制，靠 rules Markdown 软约束） |
+| MCP | `.mcp.json`（根） | `.trae/mcp.json`（镜像，详见 §12.2） |
+| Memory | `.claude/memory/` + memory-mcp | （无文件级 memory） |
+
+### 12.1 双端同步规则
+
+- 事实层（项目概述、技术栈、目录、命名规范、Vue/代码规范、commit 规范）由 `CLAUDE.md` / `AGENTS.md` 维护为单一真源（SoT）。
+- 修改根 `CLAUDE.md` 后，**手工**跑一次 `pnpm sync:ai to-trae`，把事实层同步到 `.trae/rules/project.md` 骨架，再人工核对 Trae frontmatter 与章节映射。
+- 反向同步（Trae → Claude）通常**不需要**，事实层只在 Claude Code 端维护。
+- 修改根 `.mcp.json` 后，若 `.trae/mcp.json` 是内容镜像模式（非软链），需跑 `pnpm sync:ai mirror`。
+
+### 12.2 MCP 镜像（Windows 平台注意）
+
+`.trae/mcp.json` 设计上软链到根 `.mcp.json`，但 Windows 默认下 Git Bash 的 `ln -s` 会被降级为普通文件，且 git 的 `core.symlinks` 默认 `false`，所以本项目实际是**内容镜像**。同步脚本 `scripts/sync-ai-config.js` 同时兼容：
+
+- 真符号链接 → 检查指向 `../.mcp.json`
+- 内容镜像 → 校验两份内容完全一致
+
+如换到 macOS / Linux，可执行 `cd .trae && ln -s ../.mcp.json mcp.json` 改为真软链，零成本同步。
+
+### 12.3 同步脚本命令
+
+```bash
+pnpm sync:ai check    # 一致性检查
+pnpm sync:ai to-trae  # 从 CLAUDE.md 重新生成 .trae/rules/project.md
+pnpm sync:ai mirror   # 把根 .mcp.json 复制到 .trae/mcp.json
+```
