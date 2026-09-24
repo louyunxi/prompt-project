@@ -33,20 +33,17 @@ import defaultBg from '@/assets/image/bg.png?inline';
  * @prop height  容器高度（默认 320px）
  * @prop radius  圆角（默认 8px）
  */
-const { src, alt, height, radius } = withDefaults(
-  defineProps<{
-    src?: string;
-    alt?: string;
-    height?: string;
-    radius?: string;
-  }>(),
-  {
-    src: '',
-    alt: '背景图',
-    height: '320px',
-    radius: '8px',
-  },
-);
+const {
+  src = '',
+  alt = '背景图',
+  height = '320px',
+  radius = '8px',
+} = defineProps<{
+  src?: string;
+  alt?: string;
+  height?: string;
+  radius?: string;
+}>();
 
 /** 当前背景图：外部传入 src 优先，否则用默认 bg.png */
 const bgSrc = computed<string>(() => (src && src.trim() ? src : defaultBg));

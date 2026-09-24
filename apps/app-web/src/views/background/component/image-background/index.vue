@@ -38,33 +38,22 @@ import defaultBg from '@/assets/image/bg.png?inline';
  * @prop repeat       background-repeat（默认 no-repeat）
  */
 const {
-  src,
-  alt,
-  height,
-  radius,
-  fit,
-  position,
-  repeat,
-} = withDefaults(
-  defineProps<{
-    src?: string;
-    alt?: string;
-    height?: string;
-    radius?: string;
-    fit?: 'cover' | 'contain';
-    position?: string;
-    repeat?: 'no-repeat' | 'repeat' | 'repeat-x' | 'repeat-y';
-  }>(),
-  {
-    src: '',
-    alt: '背景图',
-    height: '320px',
-    radius: '8px',
-    fit: 'cover',
-    position: 'center',
-    repeat: 'no-repeat',
-  },
-);
+  src = '',
+  alt = '背景图',
+  height = '320px',
+  radius = '8px',
+  fit = 'cover',
+  position = 'center',
+  repeat = 'no-repeat',
+} = defineProps<{
+  src?: string;
+  alt?: string;
+  height?: string;
+  radius?: string;
+  fit?: 'cover' | 'contain';
+  position?: string;
+  repeat?: 'no-repeat' | 'repeat' | 'repeat-x' | 'repeat-y';
+}>();
 
 /** 当前背景图：外部传入 src 优先，否则用默认 bg.png */
 const bgUrl = computed<string>(() => (src && src.trim() ? src : defaultBg));
