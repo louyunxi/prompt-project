@@ -26,7 +26,7 @@
     2. 原 el-tooltip（Element Plus）改为 a-tooltip（ant-design-vue），
        textLen 判断超长后显示完整内容。
     3. 50 个粒子上升动画保留源实现：SCSS @for 循环生成随机 keyframes
-       （随机尺寸、随机时长 28000+random(9000)ms、随机 delay random(37000)ms、自下而上）。
+       （随机尺寸、随机时长 28000+math.random(9000)ms、随机 delay math.random(37000)ms、自下而上）。
     4. contentHeight < 225 时 small 模式：容器高度改用 ResizeObserver 监听切换
        （源为 mounted 一次性读取 clientHeight），onBeforeUnmount 释放观察器。
     5. 图片物料 station.png / station-light.png / station-bottom.png
@@ -206,6 +206,8 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
+@use 'sass:math';
+
 .weather-station {
   --ws-bg: #062238;
   --ws-label: #a1d0e2;
@@ -428,22 +430,22 @@ onBeforeUnmount(() => {
 
     @for $i from 1 through $particleNum {
       &:nth-child(#{$i}) {
-        $circleSize: random($particleBaseSize);
+        $circleSize: math.random($particleBaseSize);
         width: #{$circleSize}px;
         height: #{$circleSize}px;
 
-        $startPositionY: random(10) + 150;
+        $startPositionY: math.random(10) + 150;
         $framesName: 'ws-move-frames-' + $i;
-        $moveDuration: 28000 + random(9000) + ms;
+        $moveDuration: 28000 + math.random(9000) + ms;
 
         animation-name: #{$framesName};
         animation-duration: $moveDuration;
-        animation-delay: random(37000) + ms;
+        animation-delay: math.random(37000) + ms;
 
         @keyframes #{$framesName} {
           from {
             transform: translate3d(
-              #{random(150)}px,
+              #{math.random(150)}px,
               #{$startPositionY}px,
               0
             );
@@ -451,8 +453,8 @@ onBeforeUnmount(() => {
 
           to {
             transform: translate3d(
-              #{random(150)}px,
-              #{-$startPositionY - random(30)}px,
+              #{math.random(150)}px,
+              #{-$startPositionY - math.random(30)}px,
               0
             );
           }

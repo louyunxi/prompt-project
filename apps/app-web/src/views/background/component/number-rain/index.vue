@@ -41,6 +41,9 @@ const COLUMN_COUNT = 50;
 </script>
 
 <style scoped lang="scss">
+@use 'sass:string';
+@use 'sass:math';
+
 .number-rain {
   --nr-bg: #03121d;
   --nr-text: #00ebf5;
@@ -68,14 +71,14 @@ const COLUMN_COUNT = 50;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace, sans-serif;
 
   $str: '101011011011101001001010100010101010111010101110';
-  $length: str-length($str);
+  $length: string.length($str);
   $n: 50;
   $animationTime: 4;
   $perColumnNums: 45;
 
   @function randomChar() {
-    $r: random($length);
-    @return str-slice($str, $r, $r);
+    $r: math.random($length);
+    @return string.slice($str, $r, $r);
   }
 
   @function randomChars($number) {
@@ -112,8 +115,8 @@ const COLUMN_COUNT = 50;
   @for $i from 0 through $n {
     $content: randomChars($perColumnNums);
     $contentNext: randomChars($perColumnNums);
-    $delay: random($n);
-    $randomAnimationTine: #{$animationTime + random(20) / 10 - 1}s;
+    $delay: math.random($n);
+    $randomAnimationTine: #{$animationTime + math.div(math.random(20), 10) - 1}s;
 
     p:nth-child(#{$i})::before {
       content: $content;
@@ -126,7 +129,7 @@ const COLUMN_COUNT = 50;
     }
 
     p:nth-child(#{$i})::after {
-      $alpha: random(40) / 100 + 0.6;
+      $alpha: math.div(math.random(40), 100) + 0.6;
       content: '';
       background: linear-gradient(
         rgba(0, 0, 0, $alpha),
