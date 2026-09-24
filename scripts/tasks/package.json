@@ -15,7 +15,6 @@
     "@anhui/app-config": "workspace:*",
     "@tnnevol/alioss": "^1.0.6",
     "@tnnevol/deploy": "^1.0.12",
-    "@tnnevol/koa2-history-api-fallback-async": "^2.0.2",
     "@tnnevol/robot-ding": "5.1.0",
     "address": "^1.2.2",
     "archiver": "^7.0.1",
