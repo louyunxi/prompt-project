@@ -164,14 +164,15 @@ const pageTitle = computed(() => (route.meta?.title as string) || '');
 const updateMenuState = (path: string) => {
   selectedKeys.value = [path.replace(/^\/|\/$/g, '')];
 
-  const keys: string[] = [];
+  // 只把当前路由的祖先 submenu 追加展开,不清空用户已手动展开的其它菜单
   const parts = path.replace(/^\/|\/$/g, '').split('/').filter(Boolean);
   let prefix = '';
   for (const part of parts) {
     prefix = prefix ? `${prefix}/${part}` : part;
-    keys.push(prefix);
+    if (subMenuKeys.has(prefix) && !openKeys.value.includes(prefix)) {
+      openKeys.value.push(prefix);
+    }
   }
-  openKeys.value = keys.filter((k) => subMenuKeys.has(k));
 };
 
 watch(() => route.path, updateMenuState);

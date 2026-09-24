@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 
 export const useUserStore = defineStore(
   'user',
@@ -26,6 +26,11 @@ export const useUserStore = defineStore(
 
     const logout = () => {
       userName.value = '';
+      // persistedstate 写入是异步的（flush 默认 'pre'），这里放到 nextTick 后再清，确保清掉的是最终落盘的缓存
+      nextTick(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+      });
     };
 
     return {
