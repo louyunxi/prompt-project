@@ -113,7 +113,6 @@ interface SurfaceSeries {
   wireframe: { show: boolean };
   pieData: PieDataItem;
   pieStatus: PieStatus;
-  center: string[];
   itemStyle?: Record<string, any>;
   parametricEquation?: ParametricEquation;
 }
@@ -239,7 +238,6 @@ function getPie3D(
       wireframe: { show: false },
       pieData: item,
       pieStatus: { selected: false, hovered: false, k },
-      center: ['10%', '50%'],
     };
     if (typeof item.itemStyle !== 'undefined') {
       const itemStyle: Record<string, any> = {};
@@ -309,11 +307,8 @@ function getPie3D(
       backgroundColor: colors.tooltipBg,
       padding: [13, 14, 13, 11],
       textStyle: {
-        width: 30,
-        height: 20,
         fontSize: 12,
         color: colors.tooltipText,
-        overflow: 'truncate',
       },
       // 内联源 BKMB104 对 tooltip.formatter 的覆盖逻辑
       formatter: (params: any) => {
@@ -334,7 +329,9 @@ function getPie3D(
     grid3D: {
       show: false,
       left: 'center',
-      top: 'center',
+      // 俯视投影（alpha 28）会让主体视觉重心偏下，top 上移使其与容器中心、
+      // labelSeries 标签层圆心（50%,50%）对齐
+      top: '10%',
       width: '60%',
       height: '60%',
       boxHeight, // 圆环的高度
@@ -484,7 +481,6 @@ function initChart() {
       opacity: 1,
       fontSize: 13,
       lineHeight: 20,
-      alignTo: 'edge',
     },
     startAngle: -20, // 起始角度，支持范围 [0, 360]
     clockwise: false, // 饼图的扇区是否是顺时针排布（对齐 3D 样式）
