@@ -26,15 +26,16 @@ pnpm publish
 ## 应用启动
 
 ```bash
+# app-prompt（后台管理端，端口 8888）
 cd apps/app-prompt
+pnpm start      # 开发
+pnpm build      # 生产构建
+pnpm preview    # 预览构建产物
 
-# 开发启动
+# app-web（Web 端示例项目，端口 8889）
+cd apps/app-web
 pnpm start
-
-# 生产构建
 pnpm build
-
-# 预览构建结果
 pnpm preview
 ```
 
@@ -42,10 +43,10 @@ pnpm preview
 
 ```
 ├── apps/
-│   └── app-prompt/           # 提示词库主应用
+│   ├── app-prompt/           # 左岸AI提示词库（后台管理端，端口 8888）
+│   └── app-web/              # Web 端示例项目（端口 8889，含 ECharts 分类示例）
 ├── configs/                  # 工程配置
-└── scripts/                  # 构建脚本
-```
+└── scripts/                  # 构建脚本（gtask）
 
 ## 开发规范
 

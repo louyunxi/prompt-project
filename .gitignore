@@ -37,3 +37,7 @@ dist.zip
 widget.zip
 apps/app-farming-model.zip
 .gstack/
+
+# ai
+.claude/settings.local.json
+.claude/temp

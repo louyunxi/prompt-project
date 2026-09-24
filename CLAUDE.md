@@ -12,7 +12,8 @@
 
 | 应用 | 包名 | 说明 | 状态 |
 |------|------|------|------|
-| app-prompt | `@anhui/app-prompt` | 左岸AI提示词库（后台管理端） | 开发中（详见 `apps/app-prompt/AGENTS.md`） |
+| app-prompt | `@anhui/app-prompt` | 左岸AI提示词库（后台管理端，端口 8888） | 开发中（详见 [apps/app-prompt/CLAUDE.md](apps/app-prompt/CLAUDE.md)） |
+| app-web | `@anhui/app-web` | Web 端示例项目（端口 8889，含 ECharts 等分类组件） | 开发中（详见 [apps/app-web/CLAUDE.md](apps/app-web/CLAUDE.md)） |
 
 > 注：根目录 `CLAUDE.md` 中提到的 `app-farming-model` 为历史模板描述，当前仓库实际仅含 `app-prompt`。
 
@@ -37,7 +38,8 @@
 ```
 anhui-agri-data-plat/
 ├── apps/                     # 业务应用（pnpm workspace）
-│   └── app-prompt/           # 左岸AI提示词库（唯一子应用）
+│   ├── app-prompt/           # 左岸AI提示词库（后台管理端）
+│   └── app-web/              # Web 端示例项目（按分类沉淀可复用组件）
 ├── configs/                  # 工程级配置（workspace 包）
 │   ├── app/                  # 应用 + API 配置（@anhui/app-config）
 │   │   ├── index.js          # 端口/输出目录/Dify 密钥等
@@ -190,12 +192,16 @@ docs: 文档        chore: 杂项        build/ci/workflow/types/wip/revert
 
 ### 10.1 Skills（供开发助手调用）
 
+`.claude/skills/` 目录下已按项目实际需求精简 11 个 Skill：
+
 | Skill | 场景 |
 |-------|------|
 | vue / vue-best-practices / vue-router-best-practices | Vue 3 开发 |
+| vueuse-functions | VueUse 组合式工具函数（按需引入） |
 | pinia | 状态管理 |
 | vite | 构建配置 |
 | pnpm | 包管理 |
+| turborepo | Monorepo 任务编排 |
 | ui-ux-pro-max / frontend-design | UI/UX 还原 |
 | drawio | 架构图 / ERD / UML / 流程图 |
 
@@ -204,11 +210,10 @@ docs: 文档        chore: 杂项        build/ci/workflow/types/wip/revert
 | MCP | 用途 |
 |-----|------|
 | playwright | 浏览器自动化测试 |
-| zentao-11-3 | 禅道任务管理 |
 | git | Git 操作 |
 | context7 | 库/框架文档查询 |
 | figma | Figma 设计稿读取 |
-| dify | Dify 平台 |
+| jcodemunch | 代码检索与符号定位（首选；不要再用 Read/Grep 翻代码） |
 
 ## 11. AI Agent 开发注意事项
 
