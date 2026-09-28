@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-import type { ConfigEnv, PluginOption } from 'vite';
+import type { PluginOption } from 'vite';
 import { fileURLToPath, URL } from 'node:url';
 import vue from '@vitejs/plugin-vue';
 import AutoImport from 'unplugin-auto-import/vite';
@@ -13,8 +13,7 @@ const APP_NAMES: Record<string, string> = {
   appPrompt: '左岸AI提示词库',
 };
 
-export default defineConfig(({ mode }: ConfigEnv) => {
-  const env = { VITE_APP_SERVER: mode === 'production' ? 'prod' : 'test' };
+export default defineConfig(() => {
   const COMMAND = process.env.ZA_APP_COMMAND;
 
   let base = '/';
@@ -51,10 +50,14 @@ export default defineConfig(({ mode }: ConfigEnv) => {
             const { port, https } = server.config.server;
             const protocol = https ? 'https' : 'http';
             const localUrl = `${protocol}://localhost:${port}/`;
-            const networkUrls = Object.values(server.resolvedUrls?.network ?? {});
+            const networkUrls = Object.values(
+              server.resolvedUrls?.network ?? {},
+            );
 
             console.log(`\n  ${APP_NAME}\n`);
-            console.log(`  \x1b[36m➜\x1b[0m  Local:   \x1b[32m${localUrl}\x1b[0m`);
+            console.log(
+              `  \x1b[36m➜\x1b[0m  Local:   \x1b[32m${localUrl}\x1b[0m`,
+            );
             networkUrls.forEach((url) => {
               console.log(`  \x1b[36m➜\x1b[0m  Network: \x1b[32m${url}\x1b[0m`);
             });
@@ -73,6 +76,20 @@ export default defineConfig(({ mode }: ConfigEnv) => {
     server: {
       host: '0.0.0.0',
       port: appConfig.appPrompt.port,
+      proxy: {
+        // jev 模型同源代理：浏览器请求 {jevProxyPath} 前缀时转发到上游，
+        // 规避 typesafe.ai 仅放行白名单 origin 导致的 CORS 预检失败
+        [appConfig.apiConfig.jevProxyPath]: {
+          target: appConfig.apiConfig.jevBaseUrl,
+          changeOrigin: true,
+          // 去掉前缀再转发，避免上游多一层 /typesafe-api 路径
+          rewrite: (path) =>
+            path.replace(
+              new RegExp(`^${appConfig.apiConfig.jevProxyPath}`),
+              '',
+            ),
+        },
+      },
     },
   };
 });

@@ -190,9 +190,18 @@ docs: 文档        chore: 杂项        build/ci/workflow/types/wip/revert
 
 ## 10. 可用 Skills 与 MCP
 
-### 10.1 Skills（供开发助手调用）
+### 10.1 工具使用优先级（开发时先看这里）
 
-`.claude/skills/` 目录下已按项目实际需求精简 11 个 Skill：
+| 场景 | 首选工具 | 说明 |
+|------|----------|------|
+| 检索 / 理解项目代码 | MCP `jcodemunch` | 代码检索与符号定位首选；**不要再用 Read/Grep/Glob 翻代码** |
+| 阅读库 / 框架官方文档 | MCP `context7` | 查 API 语法、配置、版本迁移、调试建议优先用 context7，再结合 WebSearch |
+| 浏览器自动化验证 | MCP `playwright` | 页面交互、快照、console 排查 |
+| Git 操作 | MCP `git` | 分支、diff、log、commit |
+| Figma 设计稿 | MCP `figma` | 读取设计稿 / 设计系统，设计稿转代码 |
+| 长期记忆 | `memory-mcp` + `memory-management` skill | 全局经验 / 偏好存 memory-mcp；管理技巧见 skill |
+
+### 10.2 Skills（`.claude/skills/`，项目已内置 12 个）
 
 | Skill | 场景 |
 |-------|------|
@@ -204,16 +213,29 @@ docs: 文档        chore: 杂项        build/ci/workflow/types/wip/revert
 | turborepo | Monorepo 任务编排 |
 | ui-ux-pro-max / frontend-design | UI/UX 还原 |
 | drawio | 架构图 / ERD / UML / 流程图 |
+| memory-management | Claude memory 管理（配合 memory-mcp 使用） |
 
-### 10.2 MCP（`.mcp.json`）
+> 用户全局（非本项目专属）还有一批通用 skill（如 `code-review`、`dataviz`、`openspec`、`vercel`、`ppt` 系列等），按任务名调用即可，不在下表罗列。
+
+### 10.3 MCP
+
+**项目级（根 `.mcp.json` 声明，改动后跑 `pnpm sync:ai mirror` 同步到 Trae）**：
 
 | MCP | 用途 |
 |-----|------|
 | playwright | 浏览器自动化测试 |
 | git | Git 操作 |
-| context7 | 库/框架文档查询 |
+| context7 | 库/框架文档查询（阅读文档首选） |
 | figma | Figma 设计稿读取 |
+
+**全局 / 会话可用（非项目 `.mcp.json` 声明，由全局配置注入）**：
+
+| MCP | 用途 |
+|-----|------|
 | jcodemunch | 代码检索与符号定位（首选；不要再用 Read/Grep 翻代码） |
+| memory | 全局记忆存取（memory-mcp） |
+| pencil | 本地 `.pen` 设计文件读写 |
+| fetch | 通用网页抓取 |
 
 ## 11. AI Agent 开发注意事项
 

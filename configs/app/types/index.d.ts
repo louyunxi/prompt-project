@@ -30,6 +30,13 @@ type ApiConfig = {
   datasetIdProd: string;
   /** 主粮作物物候期知识库 ID - 测试服 */
   datasetIdTest: string;
+
+  /** jev（TypeSafe AI System One）模型上游接口地址 */
+  jevBaseUrl: string;
+  /** jev 同源代理前缀（dev 由 Vite 代理，生产由部署服务器反代） */
+  jevProxyPath: string;
+  /** jev 模型 API 密钥 */
+  jevApiKey: string;
 };
 
 type Config = {

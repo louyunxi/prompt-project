@@ -21,10 +21,6 @@
     "figma": {
       "url": "https://mcp.figma.com/mcp",
       "type": "http"
-    },
-    "jcodemunch": {
-      "command": "C:\\Users\\80640\\.local\\bin\\jcodemunch-mcp.exe",
-      "args": []
     }
   }
 }

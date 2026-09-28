@@ -9,6 +9,144 @@
       <div class="hero-glow"></div>
     </div>
 
+    <!-- AI 组件智能匹配 -->
+    <a-card class="panel ai-match" :bordered="false">
+      <template #title>
+        <span class="panel-title">
+          <span class="panel-bar"></span>AI 组件智能匹配
+          <a-tag color="blue" class="ai-match__tag">jev 模型</a-tag>
+        </span>
+      </template>
+
+      <a-textarea
+        v-model:value="matchQuestion"
+        :rows="3"
+        class="ai-match__question"
+        placeholder="描述你的需求，例如：展示近 12 个月的产量变化趋势、各地市男女比例环形图、大屏渐变数字背景…"
+        allow-clear
+      />
+
+      <div class="ai-match__row">
+        <div class="ai-match__label">
+          候选组件
+          <span class="ai-match__count"
+            >{{ selectedNames.length }} / {{ components.length }}</span
+          >
+        </div>
+        <a-select
+          v-model:value="selectedNames"
+          mode="multiple"
+          :options="componentOptions"
+          placeholder="选择候选组件（默认全选）"
+          :max-tag-count="4"
+          class="ai-match__select"
+        />
+      </div>
+
+      <div class="ai-match__row">
+        <div v-if="componentsLoading" class="ai-match__hint">
+          <a-spin size="small" /> 正在加载 PC 端组件清单…
+        </div>
+        <a-alert
+          v-else-if="componentsError"
+          class="ai-match__error"
+          type="error"
+          :message="componentsError"
+          show-icon
+        >
+          <template #action>
+            <a-button size="small" @click="loadComponents">重试</a-button>
+          </template>
+        </a-alert>
+        <div class="ai-match__actions">
+          <a-button class="ai-match__btn" @click="handleSelectAll"
+            >全选</a-button
+          >
+          <a-button
+            type="primary"
+            class="ai-match__btn"
+            :loading="matching"
+            :disabled="!matchQuestion.trim() || !selectedNames.length"
+            @click="handleMatch"
+          >
+            <template #icon><RobotOutlined /></template>
+            智能匹配组件
+          </a-button>
+        </div>
+      </div>
+
+      <a-alert
+        v-if="matchError"
+        class="ai-match__error"
+        type="error"
+        :message="matchError"
+        show-icon
+      />
+
+      <div v-if="matchResult" class="ai-match__result">
+        <div class="match-card">
+          <div class="match-card__head">
+            <div class="match-card__icon">
+              <component :is="AppstoreOutlined" />
+            </div>
+            <div class="match-card__info">
+              <div class="match-card__title">
+                {{ matchResult.component.title }}
+                <a-tag class="match-card__tag">{{
+                  matchResult.component.categoryName
+                }}</a-tag>
+              </div>
+              <div class="match-card__name">
+                {{ matchResult.component.name }}
+              </div>
+            </div>
+            <div class="match-card__score">
+              <div class="match-card__score-num">{{ matchScore }}</div>
+              <div class="match-card__score-label">置信度</div>
+            </div>
+          </div>
+
+          <div class="match-card__probs">
+            <div v-for="item in topProbs" :key="item.key" class="prob-row">
+              <span class="prob-name" :title="probLabel(item.key)">{{
+                probLabel(item.key)
+              }}</span>
+              <div class="prob-bar">
+                <div
+                  class="prob-fill"
+                  :style="{ width: `${item.value * 100}%` }"
+                ></div>
+              </div>
+              <span class="prob-val">{{ (item.value * 100).toFixed(1) }}%</span>
+            </div>
+          </div>
+        </div>
+
+        <a-collapse class="ai-match__api" :bordered="false">
+          <a-collapse-panel key="api">
+            <template #header>
+              <span class="ai-match__api-title"
+                >模型接口（jev · POST /v1/systemone）</span
+              >
+              <a-tag v-if="usageText" color="blue">{{ usageText }}</a-tag>
+            </template>
+            <div class="api-block">
+              <div class="api-block__label">请求 Request</div>
+              <pre class="api-block__json">{{
+                prettyJson(matchResult.request)
+              }}</pre>
+            </div>
+            <div class="api-block">
+              <div class="api-block__label">响应 Response</div>
+              <pre class="api-block__json">{{
+                prettyJson(matchResult.response)
+              }}</pre>
+            </div>
+          </a-collapse-panel>
+        </a-collapse>
+      </div>
+    </a-card>
+
     <!-- 统计卡片 -->
     <a-row :gutter="16" class="stat-cards">
       <a-col :span="6" v-for="card in statCards" :key="card.label">
@@ -74,11 +212,7 @@
             </span>
           </template>
           <div class="quick-grid">
-            <div
-              v-for="q in quickActions"
-              :key="q.label"
-              class="quick-item"
-            >
+            <div v-for="q in quickActions" :key="q.label" class="quick-item">
               <div :class="['quick-icon', `accent-${q.accent}`]">
                 <component :is="q.icon" />
               </div>
@@ -103,8 +237,14 @@ import {
   TagsOutlined,
   HeartOutlined,
   SettingOutlined,
+  RobotOutlined,
 } from '@ant-design/icons-vue';
 import { useUserStore } from '@/store/modules/user';
+import { fetchPcComponents, type PcComponent } from '@/utils/pc-components';
+import {
+  matchComponent,
+  type ComponentMatchResult,
+} from '@/utils/component-matcher';
 
 const userStore = useUserStore();
 const loading = ref(true);
@@ -113,18 +253,31 @@ const userName = computed(() => userStore.userName || '管理员');
 
 const greeting = computed(() => {
   const h = new Date().getHours();
-  if (h < 6) {return '凌晨好';}
-  if (h < 9) {return '早上好';}
-  if (h < 12) {return '上午好';}
-  if (h < 14) {return '中午好';}
-  if (h < 18) {return '下午好';}
+  if (h < 6) {
+    return '凌晨好';
+  }
+  if (h < 9) {
+    return '早上好';
+  }
+  if (h < 12) {
+    return '上午好';
+  }
+  if (h < 14) {
+    return '中午好';
+  }
+  if (h < 18) {
+    return '下午好';
+  }
   return '晚上好';
 });
 
 const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 const todayLabel = computed(() => {
   const d = new Date();
-  return `${d.getFullYear()}年${String(d.getMonth() + 1).padStart(2, '0')}月${String(d.getDate()).padStart(2, '0')}日 ${weekDays[d.getDay()]}`;
+  return `${d.getFullYear()}年${String(d.getMonth() + 1).padStart(
+    2,
+    '0',
+  )}月${String(d.getDate()).padStart(2, '0')}日 ${weekDays[d.getDay()]}`;
 });
 
 interface PromptItem {
@@ -199,7 +352,99 @@ const quickActions = [
   },
 ];
 
-const mockCategories = ['文案写作', '代码助手', '数据分析', '图像生成', '办公效率', '学习辅导'];
+/* ---------- AI 组件智能匹配 ---------- */
+const components = ref<PcComponent[]>([]);
+const componentsLoading = ref(false);
+const componentsError = ref('');
+const matchQuestion = ref('');
+const selectedNames = ref<string[]>([]);
+const matching = ref(false);
+const matchError = ref('');
+const matchResult = ref<ComponentMatchResult | null>(null);
+
+const componentOptions = computed(() =>
+  components.value.map((c) => ({
+    label: `${c.categoryName} · ${c.title}`,
+    value: c.name,
+  })),
+);
+
+/** 加载 PC 端全部组件清单（通过子应用 apiOnly 动态获取），默认全选 */
+const loadComponents = async () => {
+  componentsLoading.value = true;
+  componentsError.value = '';
+  try {
+    components.value = await fetchPcComponents();
+    selectedNames.value = components.value.map((c) => c.name);
+  } catch (err) {
+    componentsError.value = `加载 PC 端组件清单失败：${
+      (err as Error).message ?? err
+    }`;
+  } finally {
+    componentsLoading.value = false;
+  }
+};
+
+const handleSelectAll = () => {
+  selectedNames.value = components.value.map((c) => c.name);
+};
+
+const handleMatch = async () => {
+  const input = matchQuestion.value.trim();
+  if (!input || !selectedNames.value.length) {
+    return;
+  }
+  matching.value = true;
+
+  matchError.value = '';
+  try {
+    matchResult.value = await matchComponent(
+      input,
+      components.value,
+      selectedNames.value,
+    );
+  } catch (err) {
+    matchError.value = `匹配失败：${(err as Error).message ?? err}`;
+  } finally {
+    matching.value = false;
+  }
+};
+
+const matchScore = computed(() => {
+  const c = matchResult.value?.answer.confidence;
+  return c == null ? '' : `${(c * 100).toFixed(1)}%`;
+});
+
+const probLabel = (key: string) => {
+  const c = components.value.find((i) => i.name === key);
+  return c ? `${c.categoryName} · ${c.title}` : key;
+};
+
+const topProbs = computed(() => {
+  if (!matchResult.value) {
+    return [];
+  }
+  return Object.entries(matchResult.value.answer.probabilities)
+    .map(([key, value]) => ({ key, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
+});
+
+const usageText = computed(() => {
+  const u = matchResult.value?.response.usage;
+  return u ? `in ${u.input_tokens} / out ${u.output_tokens} tokens` : '';
+});
+
+const prettyJson = (obj: unknown) => JSON.stringify(obj, null, 2);
+
+const mockCategories = [
+  '文案写作',
+  '代码助手',
+  '数据分析',
+  '图像生成',
+  '办公效率',
+  '学习辅导',
+];
 
 const mockTitles = [
   '小红书爆款标题生成器',
@@ -232,7 +477,12 @@ const fetchData = async () => {
         title: mockTitles[i % mockTitles.length],
         category: mockCategories[i % mockCategories.length],
         usage_count: Math.floor(Math.random() * 300) + 20,
-        created_at: `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
+        created_at: `${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+          date.getDate(),
+        ).padStart(2, '0')} ${String(date.getHours()).padStart(
+          2,
+          '0',
+        )}:${String(date.getMinutes()).padStart(2, '0')}`,
       };
     });
   } finally {
@@ -240,7 +490,10 @@ const fetchData = async () => {
   }
 };
 
-onMounted(fetchData);
+onMounted(() => {
+  fetchData();
+  loadComponents();
+});
 </script>
 
 <style lang="scss" scoped>
@@ -342,9 +595,7 @@ $amber: #e8a13c;
   background: #fff;
   border: 1px solid #eef2f6;
   overflow: hidden;
-  transition:
-    transform 0.18s,
-    box-shadow 0.18s;
+  transition: transform 0.18s, box-shadow 0.18s;
 
   &::before {
     content: '';
@@ -455,9 +706,7 @@ $amber: #e8a13c;
   margin: 0 -12px;
   border-radius: 10px;
   cursor: pointer;
-  transition:
-    background 0.15s,
-    transform 0.15s;
+  transition: background 0.15s, transform 0.15s;
 
   &:hover {
     background: #f6f9fc;
@@ -527,10 +776,7 @@ $amber: #e8a13c;
   border-radius: 12px;
   border: 1px solid #eef2f6;
   cursor: pointer;
-  transition:
-    transform 0.18s,
-    box-shadow 0.18s,
-    border-color 0.18s;
+  transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
 
   &:hover {
     transform: translateY(-3px);
@@ -570,4 +816,217 @@ $amber: #e8a13c;
   }
 }
 
+/* AI 组件智能匹配 */
+.ai-match {
+  margin-bottom: 16px;
+
+  &__tag {
+    margin-left: 8px;
+  }
+
+  &__question {
+    margin-bottom: 14px;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  &__label {
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1f2d3d;
+  }
+
+  &__count {
+    margin-left: 4px;
+    font-weight: 400;
+    color: #9aa7b4;
+    font-size: 12px;
+  }
+
+  &__select {
+    flex: 1;
+    min-width: 320px;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  &__hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #9aa7b4;
+  }
+
+  &__error {
+    margin-bottom: 12px;
+    width: 100%;
+  }
+
+  &__result {
+    margin-top: 16px;
+    border-top: 1px solid #f0f3f6;
+    padding-top: 16px;
+  }
+}
+
+/* 匹配结果卡片 */
+.match-card {
+  border-radius: 12px;
+  border: 1px solid #e8eef4;
+  padding: 16px 18px;
+  background: #fbfdff;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  &__icon {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #e6f1fa;
+    color: $blue;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1f2d3d;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__name {
+    font-size: 12px;
+    color: #9aa7b4;
+    font-family: 'JetBrains Mono', Consolas, monospace;
+    margin-top: 2px;
+  }
+
+  &__score {
+    flex-shrink: 0;
+    text-align: right;
+  }
+
+  &__score-num {
+    font-size: 22px;
+    font-weight: 700;
+    color: $blue;
+  }
+
+  &__score-label {
+    font-size: 12px;
+    color: #9aa7b4;
+  }
+
+  &__probs {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+.prob-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+
+  .prob-name {
+    flex-shrink: 0;
+    width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #5c6b7a;
+  }
+
+  .prob-bar {
+    flex: 1;
+    height: 8px;
+    border-radius: 4px;
+    background: #eef2f6;
+    overflow: hidden;
+  }
+
+  .prob-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #29a9e0, #0565b4);
+    transition: width 0.4s ease;
+  }
+
+  .prob-val {
+    flex-shrink: 0;
+    width: 46px;
+    text-align: right;
+    color: #5c6b7a;
+    font-family: 'JetBrains Mono', Consolas, monospace;
+  }
+}
+
+/* 模型接口展示 */
+.ai-match__api {
+  margin-top: 14px;
+  border-radius: 10px;
+  background: #fbfdff;
+  border: 1px solid #eef2f6;
+
+  .ai-match__api-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1f2d3d;
+  }
+}
+
+.api-block {
+  margin-bottom: 10px;
+
+  &__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #5c6b7a;
+    margin-bottom: 6px;
+  }
+
+  &__json {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #0f1c2e;
+    color: #b7e4c7;
+    font-family: 'JetBrains Mono', Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    overflow: auto;
+    max-height: 320px;
+    white-space: pre;
+  }
+}
 </style>
