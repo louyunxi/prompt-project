@@ -174,7 +174,10 @@ function buildBaseOption(colors: GroupBarColors): echarts.EChartsOption {
       show: true,
       trigger: 'axis',
       confine: true,
-      axisPointer: { type: 'none' },
+      axisPointer: {
+        type: 'shadow',
+        shadowStyle: { color: 'rgba(0, 0, 0, 0.1)' },
+      },
       backgroundColor: colors.tooltipBg,
       position: 'top',
       padding: [13, 14, 13, 11],
@@ -199,7 +202,7 @@ function buildBaseOption(colors: GroupBarColors): echarts.EChartsOption {
       height: 20,
       textStyle: { color: colors.axisText },
     },
-    grid: { top: 50, right: 30, bottom: 35, left: 60 },
+    grid: { top: '18%', right: 30, left: 60, bottom: '8%' },
     xAxis: {
       type: 'category',
       axisTick: { show: false },
@@ -215,8 +218,11 @@ function buildBaseOption(colors: GroupBarColors): echarts.EChartsOption {
     },
     yAxis: {
       splitNumber: 3,
-      nameTextStyle: { align: 'right', color: colors.axisText },
-      nameGap: 20,
+      nameTextStyle: {
+        fontSize: 12,
+        color: colors.axisText,
+        padding: [4, 8, 5, 8],
+      },
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: { show: true, lineStyle: { color: colors.splitLine } },
@@ -275,7 +281,7 @@ function refreshChart(colors: GroupBarColors) {
       },
     ],
     grid: {
-      bottom: maxLength > 12 ? 60 : maxLength > 6 ? 50 : 35,
+      bottom: maxLength > 12 ? 30 : maxLength > 6 ? 22 : '8%',
     },
     series: groupList.map((ele, index) => ({
       barMinHeight: 3,
@@ -312,7 +318,7 @@ function refreshChart(colors: GroupBarColors) {
           end: (12 / maxLength) * 100,
           xAxisIndex: [0],
           zoomLock: true,
-          bottom: 5,
+          bottom: 0,
         }
       : { show: false },
   };

@@ -38,7 +38,7 @@
     4. 该图表无图片物料，无需 assets 资源目录。
 -->
 <template>
-  <div class="donut">
+  <div ref="rootRef" class="donut">
     <div class="donut__tabs">
       <div
         v-for="(group, index) in mockMetricGroupList"
@@ -249,6 +249,7 @@ function buildPieOption(colors: DonutColors): echarts.EChartsOption {
   };
 }
 
+const rootRef = ref<HTMLDivElement>();
 const chartRef = ref<HTMLDivElement>();
 let chartInstance: echarts.ECharts | null = null;
 
@@ -317,18 +318,42 @@ function handleTabClick(index: number) {
  * 比 window.resize 监听更准确；组件销毁时 disconnect 释放 observer。
  */
 const handleResize = debounce(() => {
+  updateTabsPadding();
   chartInstance?.resize();
 }, 200);
 
 /** chartRef 尺寸变化观察器 */
 let resizeObserver: ResizeObserver | null = null;
 
+/**
+ * 按容器剩余高度动态计算 __tabs 的上下 padding：
+ * 剩余高度（容器高 - tabs 内容高 - body 高）按比例分配，上下各占一部分，
+ * 最小 8px，最大 24px，写入 CSS 变量 --dn-tabs-pad-y 供样式使用。
+ */
+function updateTabsPadding() {
+  const root = rootRef.value;
+  const tabs = root?.querySelector<HTMLElement>('.donut__tabs');
+  const body = root?.querySelector<HTMLElement>('.donut__body');
+  if (!root || !tabs || !body) return;
+
+  const tabsContentHeight = tabs.scrollHeight - parseFloat(getComputedStyle(tabs).paddingTop || '0') - parseFloat(getComputedStyle(tabs).paddingBottom || '0');
+  const bodyHeight = body.offsetHeight;
+  const remaining = root.clientHeight - tabsContentHeight - bodyHeight - 16; // 16 为 tabs margin-bottom
+
+  const padY = Math.min(24, Math.max(8, remaining * 0.25));
+  root.style.setProperty('--dn-tabs-pad-y', `${padY}px`);
+}
+
 onMounted(() => {
   nextTick(() => {
     initChart();
-    if (chartRef.value) {
+    updateTabsPadding();
+    if (rootRef.value) {
       resizeObserver = new ResizeObserver(handleResize);
-      resizeObserver.observe(chartRef.value);
+      resizeObserver.observe(rootRef.value);
+    }
+    if (chartRef.value) {
+      resizeObserver?.observe(chartRef.value);
     }
   });
 });
@@ -360,11 +385,16 @@ onBeforeUnmount(() => {
   --dn-slice-6: #fac907;
 
   width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 
   &__tabs {
     display: flex;
     justify-content: center;
     gap: 40px;
+    // 上下留白由 JS 按容器高度计算（--dn-tabs-pad-y），随容器高度伸缩
+    padding: var(--dn-tabs-pad-y, 8px) 0;
     margin-bottom: 16px;
   }
 
@@ -401,6 +431,7 @@ onBeforeUnmount(() => {
   }
 
   &__body {
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -409,8 +440,8 @@ onBeforeUnmount(() => {
 
   &__chart-wrap {
     position: relative;
-    flex: 0 0 60%;
-    width: 60%;
+    flex: 0 0 50%;
+    width: 50%;
     aspect-ratio: 1 / 1;
   }
 

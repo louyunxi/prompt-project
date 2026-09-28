@@ -351,7 +351,7 @@ onBeforeUnmount(async () => {
   }
 
   &__loading-text {
-    font-size: 18px;
+    font-size: 15px;
     color: var(--ink-color-3, #666);
     letter-spacing: 1px;
   }

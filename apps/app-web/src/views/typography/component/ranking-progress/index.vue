@@ -250,11 +250,13 @@ function textFun(val: string, num: number): string {
     height: 30px;
     margin-bottom: 6px;
     display: flex;
+    align-items: center;
     padding: 0 12px;
 
     .ranking-progress__nav-left,
     .ranking-progress__nav-right {
       width: 30px;
+      height: 100%;
       color: var(--rkp-nav-active);
       display: flex;
       align-items: center;
@@ -299,7 +301,9 @@ function textFun(val: string, num: number): string {
       flex-grow: 0;
       flex-shrink: 0;
       width: 50%;
+      margin: 0;
       display: flex;
+      align-items: center;
       justify-content: center;
       position: relative;
       cursor: pointer;

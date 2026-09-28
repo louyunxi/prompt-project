@@ -196,12 +196,20 @@ onBeforeUnmount(() => {
 
   &__scroll-list {
     box-sizing: border-box;
+    margin: 0;
     padding: 16px 16px 0 46px;
+    list-style: none;
+
+    li {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
   }
 
   &__item {
     position: relative;
-    margin-bottom: 12px;
+    margin: 0 0 12px;
     padding: 10px 12px;
     background-color: var(--fd-item-bg);
     font-size: 14px;
@@ -244,6 +252,7 @@ onBeforeUnmount(() => {
   }
 
   &__name {
+    margin: 0;
     max-width: 60%;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -251,12 +260,14 @@ onBeforeUnmount(() => {
   }
 
   &__time {
+    margin: 0;
     min-width: 114px;
     text-align: right;
     font-weight: normal;
   }
 
   &__content {
+    margin: 0;
     color: var(--fd-content);
   }
 

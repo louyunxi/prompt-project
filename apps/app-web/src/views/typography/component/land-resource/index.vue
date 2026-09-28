@@ -144,19 +144,21 @@ const pageList = computed(() => arrTrans(PAGE_SIZE, mock.itemList));
   position: relative;
   width: 100%;
   height: 300px;
-  padding: 18px 20px;
+  padding: 18px 24px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  overflow-x: hidden;
+  overflow-y: hidden;
   background: var(--lr-bg);
   border-radius: 8px;
 
   &__header {
     position: relative;
     flex-shrink: 0;
-    width: 362px;
+    width: min(362px, 100%);
     height: 120px;
     box-sizing: border-box;
     display: flex;
@@ -172,6 +174,7 @@ const pageList = computed(() => arrTrans(PAGE_SIZE, mock.itemList));
       left: 0;
       height: 100%;
       width: 155px;
+      max-width: 43%;
     }
 
     &-dot {
@@ -189,18 +192,23 @@ const pageList = computed(() => arrTrans(PAGE_SIZE, mock.itemList));
     font-size: 18px;
     font-weight: bold;
     color: var(--lr-tit);
-    margin-bottom: 16px;
+    margin: 0 0 16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   &__total-row {
     display: flex;
     align-items: baseline;
+    margin: 0;
   }
 
   &__total {
     font-size: 30px;
     font-weight: bold;
     color: var(--lr-total);
+    white-space: nowrap;
   }
 
   &__unit {
@@ -257,11 +265,14 @@ const pageList = computed(() => arrTrans(PAGE_SIZE, mock.itemList));
     font-size: 14px;
     font-weight: 400;
     color: var(--lr-nav-tit);
+    margin: 0;
+    white-space: nowrap;
   }
 
   &__nav-value {
     display: flex;
     align-items: baseline;
+    margin: 0;
   }
 
   &__nav-num {
@@ -283,7 +294,7 @@ const pageList = computed(() => arrTrans(PAGE_SIZE, mock.itemList));
     padding: 14px 16px;
 
     &__header {
-      width: 300px;
+      width: min(300px, 100%);
       height: 100px;
       padding-left: 128px;
 

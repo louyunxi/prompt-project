@@ -37,8 +37,8 @@
        a-image-preview-group 内置预览（plateIconUrl 逗号分割，最多 5 张）。
     4. level 后缀保留：行 1 -> "st"、2 -> "nd"、3 -> "rd"、其余 "th"；
        metricMapParam 控制行 cursor pointer。
-    5. 图片列宽度取合理默认 260px（原 isBottomOne 420 / isWidescreen 170 条件
-       简化），用 CSS 媒体查询适配不同屏宽字号。
+    5. 图片列不设固定宽度，各列按剩余空间自适应（去掉了横向 scroll），
+       用 CSS 媒体查询适配不同屏宽字号。
     6. 图片物料 rank-1.png ~ rank-6.png 已拷贝至本组件 assets/ 目录，
        动态 :src 通过 new URL + import.meta.url 生成。
 -->
@@ -50,7 +50,6 @@
       :pagination="false"
       :row-key="(record) => record?.metricName ?? ''"
       :row-class-name="rowClassName"
-      :scroll="{ x: 640 }"
     >
       <template #bodyCell="{ column, record, index }">
         <template v-if="column.key === 'name'">
@@ -209,12 +208,14 @@ const tableData: RankRow[] = mockList.map((row) => ({
   imgList: splitImgList(row.plateIconUrl),
 }));
 
-/** 表格列定义（内容通过 #bodyCell 模板按 key 分支渲染） */
+/** 表格列定义（内容通过 #bodyCell 模板按 key 分支渲染）；
+ * 不设固定 width，让各列按剩余空间自适应宽度，避免横向滚动 */
 const columns: TableColumnsType = [
-  { title: '名称', dataIndex: 'metricName', key: 'name' },
-  { title: '数值', dataIndex: 'metricValue', key: 'value' },
-  { title: '单位', dataIndex: 'metricUnit', key: 'unit' },
-  { title: '图片', dataIndex: 'plateIconUrl', key: 'icon', width: 260 },
+  // width 用百分比：各列按容器宽度等比分配，随容器宽度动态伸缩，不产生横向滚动
+  { title: '名称', dataIndex: 'metricName', key: 'name', width: '34%' },
+  { title: '数值', dataIndex: 'metricValue', key: 'value', width: '18%' },
+  { title: '单位', dataIndex: 'metricUnit', key: 'unit', width: '18%' },
+  { title: '图片', dataIndex: 'plateIconUrl', key: 'icon' },
 ];
 
 /** 行级样式：前三名行加特殊文字色，metricMapParam 行加 pointer 光标 */
@@ -267,13 +268,22 @@ function levelSuffix(index: number): string {
   height: 100%;
   padding: 12px;
   box-sizing: border-box;
-  overflow: auto;
+  // 只允许纵向滚动（行数多时），杜绝横向滚动条
+  overflow-x: hidden;
+  overflow-y: auto;
   background: var(--rkt-bg);
   border-radius: 4px;
 
   :deep(.ant-table) {
     background: transparent;
     color: var(--rkt-text);
+  }
+
+  // 表格铺满容器、列宽自适应，杜绝横向滚动条
+  :deep(.ant-table-content > .ant-table) ,
+  :deep(table) {
+    width: 100% !important;
+    table-layout: fixed;
   }
 
   :deep(.ant-table-thead > tr > th) {
@@ -283,7 +293,9 @@ function levelSuffix(index: number): string {
     font-weight: normal;
     font-size: 14px;
     line-height: 1.3;
-    padding: 8px;
+    padding: 8px 10px;
+    white-space: nowrap;
+    overflow: hidden;
 
     &::before {
       display: none;
@@ -291,11 +303,12 @@ function levelSuffix(index: number): string {
   }
 
   :deep(.ant-table-tbody > tr > td) {
-    height: 40px;
-    padding: 4px 8px;
+    height: 44px;
+    padding: 4px 10px;
     background: transparent;
     font-size: 14px;
     border-bottom: none;
+    overflow: hidden;
   }
 
   :deep(.ant-table-tbody > tr.ant-table-row:hover > td) {
@@ -366,10 +379,11 @@ function levelSuffix(index: number): string {
   }
 
   &__hidetext {
+    display: inline-block;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 180px;
+    max-width: 100%;
   }
 
   &__img-box {

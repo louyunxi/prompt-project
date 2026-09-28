@@ -157,10 +157,9 @@ function buildBaseOption(colors: BubbleColors): echarts.EChartsOption {
       },
     },
     grid: {
-      top: '20%',
+      top: '18%',
       left: '12%',
-      bottom: '15%',
-      height: '55%',
+      bottom: '8%',
     },
     xAxis: {
       type: 'category',
@@ -183,12 +182,10 @@ function buildBaseOption(colors: BubbleColors): echarts.EChartsOption {
       splitNumber: 3,
       name: '单位：单位',
       nameTextStyle: {
-        align: 'right',
         color: colors.yAxisName,
         fontSize: 12,
-        padding: [0, 0, 0, 0],
+        padding: [4, 8, 5, 8],
       },
-      nameGap: 20,
       axisLine: {
         show: false,
       },

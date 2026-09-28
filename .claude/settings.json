@@ -70,6 +70,8 @@
       "NotebookEdit(.claude/**)",
       "Grep(.claude/**)",
       "Glob(.claude/**)",
+      "mcp__jcodemunch",
+      "mcp__playwright",
       "mcp__zentao-11-3__initZentao",
       "mcp__zentao-11-3__getProducts",
       "mcp__zentao-11-3__getStoryDetail",

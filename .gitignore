@@ -40,3 +40,6 @@ widget.zip
 # ai
 .claude/settings.local.json
 .claude/temp
+
+# playwright-mcp
+.playwright-mcp/

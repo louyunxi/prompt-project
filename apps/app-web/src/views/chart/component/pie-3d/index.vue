@@ -331,9 +331,9 @@ function getPie3D(
       left: 'center',
       // 俯视投影（alpha 28）会让主体视觉重心偏下，top 上移使其与容器中心、
       // labelSeries 标签层圆心（50%,50%）对齐
-      top: '10%',
-      width: '60%',
-      height: '60%',
+      top: '5%',
+      width: '80%',
+      height: '70%',
       boxHeight, // 圆环的高度
       viewControl: {
         alpha, // 角度
@@ -470,7 +470,7 @@ function initChart() {
   chartInstance = echarts.init(chartRef.value);
 
   const expandData = optionDataExpand(mockPieData, colors);
-  const option = getPie3D(expandData, 0, 240, 28, 26, 1, colors);
+  const option = getPie3D(expandData, 0, 300, 28, 36, 1, colors);
 
   // 额外 push 透明 labelSeries（2D 标签层，承接名称/数值标签渲染，不遮挡 3D 扇形）
   option.series.push({
@@ -536,16 +536,17 @@ function bindEchartEvents() {
     }
 
     // 对当前点击的扇形，执行选中/取消选中操作（对 option 更新）
-    option.series[params.seriesIndex].parametricEquation = getParametricEquation(
-      startRatio,
-      endRatio,
-      isSelected,
-      isHovered,
-      k,
-      // 修复：源组件此处误写 option.series[selectedIndex].pieData.value，
-      // 首次点击时 option.series[''] 为 undefined 会抛错，改为当前扇区数据
-      option.series[params.seriesIndex].pieData.value,
-    );
+    option.series[params.seriesIndex].parametricEquation =
+      getParametricEquation(
+        startRatio,
+        endRatio,
+        isSelected,
+        isHovered,
+        k,
+        // 修复：源组件此处误写 option.series[selectedIndex].pieData.value，
+        // 首次点击时 option.series[''] 为 undefined 会抛错，改为当前扇区数据
+        option.series[params.seriesIndex].pieData.value,
+      );
     option.series[params.seriesIndex].pieStatus.selected = isSelected;
 
     // 如果本次是选中操作，记录上次选中的扇形对应的系列号 seriesIndex
@@ -602,14 +603,15 @@ function bindEchartEvents() {
       endRatio = option.series[params.seriesIndex].pieData.endRatio;
       k = option.series[params.seriesIndex].pieStatus.k;
 
-      option.series[params.seriesIndex].parametricEquation = getParametricEquation(
-        startRatio,
-        endRatio,
-        isSelected,
-        isHovered,
-        k,
-        option.series[params.seriesIndex].pieData.value + 5,
-      );
+      option.series[params.seriesIndex].parametricEquation =
+        getParametricEquation(
+          startRatio,
+          endRatio,
+          isSelected,
+          isHovered,
+          k,
+          option.series[params.seriesIndex].pieData.value + 5,
+        );
       option.series[params.seriesIndex].pieStatus.hovered = isHovered;
       hoveredIndex = params.seriesIndex;
     }
@@ -713,9 +715,10 @@ onBeforeUnmount(() => {
     left: 0;
     width: 100%;
     height: 100%;
-    background: url('./assets/chart-pie-3d-base-bg.png') no-repeat center 76%;
-    background-size: cover;
+    background: url('./assets/chart-pie-3d-base-bg.png') no-repeat;
     pointer-events: none;
+    background-size: 80% auto;
+    background-position: center 60%;
   }
 
   /* 顶部描述区：标题 + 数值 + 单位 */

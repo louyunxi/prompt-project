@@ -221,7 +221,7 @@ function buildBaseOption(colors: LineAreaColors): echarts.EChartsOption {
       borderColor: colors.gridBorder,
       top: 38,
       right: 30,
-      bottom: 35,
+      bottom: '8%',
       left: 60,
     },
     tooltip: {

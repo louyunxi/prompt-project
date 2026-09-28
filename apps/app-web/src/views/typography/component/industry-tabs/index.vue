@@ -229,6 +229,7 @@ onMounted(() => {
   &__nav-wrap {
     display: flex;
     position: relative;
+    gap: 40px;
   }
 
   &__nav-item {
@@ -236,18 +237,17 @@ onMounted(() => {
     height: 100%;
     display: flex;
     align-items: center;
-    margin-left: 40px;
+    justify-content: center;
 
     & > span {
       height: 16px;
+      line-height: 16px;
       font-family: Microsoft YaHei;
       font-size: 16px;
       font-weight: 400;
       color: var(--it-nav-text);
-    }
-
-    &:nth-child(1) {
-      margin-left: 0;
+      white-space: nowrap;
+      text-align: center;
     }
 
     &:hover > span,
@@ -271,7 +271,7 @@ onMounted(() => {
     position: relative;
     width: 100%;
     height: 165px;
-    margin-top: 10px;
+    margin-top: 26px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -409,12 +409,15 @@ onMounted(() => {
       padding-top: 8px;
     }
 
-    &__nav-item {
-      margin-left: 32px;
+    &__nav-wrap {
+      gap: 32px;
+    }
 
+    &__nav-item {
       & > span {
         font-size: 14px;
         height: 14px;
+        line-height: 14px;
       }
     }
 
@@ -455,12 +458,15 @@ onMounted(() => {
   @media (min-width: 1920px) {
     padding: 14px 20px 18px;
 
-    &__nav-item {
-      margin-left: 48px;
+    &__nav-wrap {
+      gap: 48px;
+    }
 
+    &__nav-item {
       & > span {
         font-size: 17px;
         height: 17px;
+        line-height: 17px;
       }
     }
 

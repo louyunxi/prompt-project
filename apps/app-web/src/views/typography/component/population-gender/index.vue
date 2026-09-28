@@ -32,6 +32,7 @@
     3. 站点图标原为接口图片（plateIconUrl），本组件改为 CSS 渐变色块占位。
     4. 图片物料：selfman.png / selfwomen.png / man.png / woman.png
        已拷贝至本组件 assets/ 目录。
+    5. 布局优化：整体上下留白加大（视觉高度增加），站点文字 p 默认 margin 已重置。
 -->
 <template>
   <div class="population-gender">
@@ -180,7 +181,7 @@ const maleCount = computed(() => {
   justify-content: center;
   box-sizing: border-box;
   width: 100%;
-  padding: 14px 12px;
+  padding: 20px 14px;
   background: var(--pg-bg);
 
   &__total {
@@ -205,8 +206,8 @@ const maleCount = computed(() => {
 
   &__people {
     position: relative;
-    height: 34px;
-    padding: 20px 0;
+    height: 40px;
+    padding: 34px 0;
   }
 
   &__row {
@@ -215,7 +216,7 @@ const maleCount = computed(() => {
 
     &--male {
       position: absolute;
-      top: 20px;
+      top: 34px;
       left: 0;
       width: 100%;
     }
@@ -237,7 +238,7 @@ const maleCount = computed(() => {
   &__sex-types {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
   }
 
   &__sex-item {
@@ -287,7 +288,7 @@ const maleCount = computed(() => {
   &__site-types {
     display: flex;
     justify-content: space-around;
-    padding-top: 10px;
+    padding-top: 14px;
   }
 
   &__site-item {
@@ -320,12 +321,14 @@ const maleCount = computed(() => {
   }
 
   &__site-name {
+    margin: 0;
     font-size: 14px;
     font-weight: 400;
     color: var(--pg-text);
   }
 
   &__site-value {
+    margin: 0;
     font-size: 24px;
     color: var(--pg-value);
   }
@@ -340,6 +343,8 @@ const maleCount = computed(() => {
   }
 
   @media (max-width: 1280px) {
+    padding: 14px 10px;
+
     &__total {
       font-size: 16px;
 
@@ -372,6 +377,8 @@ const maleCount = computed(() => {
   }
 
   @media (min-width: 1920px) {
+    padding: 24px 18px;
+
     &__total {
       font-size: 20px;
 

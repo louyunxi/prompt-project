@@ -33,7 +33,9 @@
     3. 翻页箭头原为 iconfont 类名，本项目无 iconfont，改用内联 SVG 箭头
        （左右方向，颜色 #049cad，禁用 #9dd1d7 cursor not-allowed）。
     4. 边界处理保留源逻辑：首页禁用上一页、末页禁用下一页；
-       自动播放仅在数据超过一页（> 4 条）时开启。
+       自动播放仅在数据超过一页时开启；每页展示数量不再固定 4 个，
+       改为按容器宽度动态计算（放不下 4 个就放 3 个，再放不下放 2 个，
+       ResizeObserver 监听宽度变化），单行排布避免内容重叠。
     5. 无图片物料：区域图（plateIconUrl）为空时用 CSS 占位块（.space-img），
        无需 assets 目录。
     6. 响应式：≤1280 收缩、1281–1919 常规、≥1920 放大三档适配。
@@ -102,7 +104,7 @@
           :key="pageIndex"
           class="carousel-areas__page"
         >
-          <div class="carousel-areas__list">
+          <div ref="listBoxRef" class="carousel-areas__list">
             <div
               v-for="(item, idx) in pageData(pageIndex)"
               :key="`${pageIndex}-${idx}`"
@@ -121,7 +123,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 /** 区域项（对应源组件 plateMetricList 中的单条数据） */
 interface AreaItem {
@@ -157,18 +159,64 @@ const dataList = mock.dataList;
 
 const carouselRef = ref<CarouselExpose>();
 
-/** 每页 4 个，总页数（对应源 carouselItemLength） */
-const carouselItemLength = computed(() => Math.ceil(dataList.length / 4));
+/** 轮播列表容器引用（用于测量宽度动态计算每页数量） */
+const listBoxRef = ref<HTMLDivElement>();
+
+/**
+ * 每页展示数量：按容器宽度动态计算（放不下 4 个放 3 个，再放不下放 2 个）。
+ * 以区域图片/占位块尺寸 + 名称行高估算单项所需宽度。
+ */
+const perPage = ref(4);
+
+/** 根据容器宽度计算每页可容纳数量（最少 2 个，最多 4 个） */
+function updatePerPage() {
+  const el = listBoxRef.value;
+  const width = el?.clientWidth ?? 0;
+  if (!width) return;
+  // 单项最小可用宽度：按当前档位的图片尺寸（CSS 变量）+ 间隔估算
+  const imgSize =
+    parseFloat(
+      el ? getComputedStyle(el).getPropertyValue('--ca-img-size') : ''
+    ) || 100;
+  const itemMinWidth = imgSize + 24;
+  let count = Math.floor(width / itemMinWidth);
+  if (count >= 4) count = 4;
+  if (count < 2) count = 2;
+  perPage.value = count;
+}
+
+let resizeObserver: ResizeObserver | null = null;
+
+onMounted(() => {
+  updatePerPage();
+  resizeObserver = new ResizeObserver(updatePerPage);
+  if (listBoxRef.value) resizeObserver.observe(listBoxRef.value);
+});
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
+});
+
+/** 总页数（对应源 carouselItemLength） */
+const carouselItemLength = computed(() =>
+  Math.ceil(dataList.length / perPage.value)
+);
 
 /** 仅当超过一页时自动播放（对应源 carouselAutoplay） */
-const carouselAutoplay = computed(() => dataList.length > 4);
+const carouselAutoplay = computed(
+  () => dataList.length > perPage.value
+);
 
 /** 当前页索引（对应源 carouseActionIndex） */
 const carouselIndex = ref(0);
 
-/** 取第 page 页的数据（对应源 slice((i - 1) * 4, i * 4)） */
+/** 取第 page 页的数据（对应源 slice((i - 1) * n, i * n)） */
 function pageData(page: number): AreaItem[] {
-  return dataList.slice((page - 1) * 4, page * 4);
+  return dataList.slice(
+    (page - 1) * perPage.value,
+    page * perPage.value
+  );
 }
 
 /** a-carousel afterChange 回调：同步当前页索引 */
@@ -204,7 +252,7 @@ function prevCarousel() {
   width: 100%;
   height: 240px;
   box-sizing: border-box;
-  padding: 0 10px;
+  padding: 20px 10px 0;
   display: flex;
   align-items: stretch;
   flex-direction: column;
@@ -218,6 +266,7 @@ function prevCarousel() {
     min-height: 0;
     box-sizing: border-box;
     overflow: auto;
+    margin: 20px 0 6px;
 
     span {
       font-size: 14px;
@@ -301,11 +350,12 @@ function prevCarousel() {
     width: 100%;
     display: flex;
     justify-content: space-evenly;
-    flex-wrap: wrap;
+    align-items: center;
   }
 
   &__area {
-    width: 25%;
+    flex: 1 1 0;
+    min-width: 0;
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -336,18 +386,22 @@ function prevCarousel() {
     font-weight: 400;
     color: var(--ca-text);
     line-height: 22px;
-    margin-top: -0.5vh;
-    padding-bottom: 5px;
-    white-space: pre-wrap;
+    height: 22px;
+    margin: 4px 0 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
 
   &__area-num {
+    margin: 0;
     color: var(--ca-num);
   }
 
   // ---- 响应式：≤1280 收缩 ----
   @media (max-width: 1280px) {
-    height: 210px;
+    height: 230px;
 
     --ca-slide-height: 130px;
     --ca-img-size: 90px;
@@ -359,7 +413,7 @@ function prevCarousel() {
 
   // ---- 响应式：≥1920 放大 ----
   @media (min-width: 1920px) {
-    height: 260px;
+    height: 280px;
 
     --ca-slide-height: 155px;
     --ca-img-size: 108px;

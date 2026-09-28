@@ -286,10 +286,9 @@ function buildBaseOption(colors: LineColors): echarts.EChartsOption {
     grid: {
       show: true,
       borderColor: colors.gridBorder,
-      bottom: 40,
-      top: 40,
-      height: '70%',
-      width: '85%',
+      top: '18%',
+      left: '12%',
+      bottom: '8%',
     },
     // 鼠标悬浮的样式
     tooltip: {
@@ -300,11 +299,6 @@ function buildBaseOption(colors: LineColors): echarts.EChartsOption {
       textStyle: {
         fontSize: 12,
         color: colors.tooltipText,
-      },
-      axisPointer: {
-        lineStyle: {
-          opacity: 0,
-        },
       },
     },
     // 图例配置
@@ -348,7 +342,7 @@ function buildBaseOption(colors: LineColors): echarts.EChartsOption {
       nameTextStyle: {
         fontSize: 12,
         color: colors.axisText,
-        padding: [4, 8, 5, 35],
+        padding: [4, 8, 5, 8],
       },
       axisLine: {
         show: false,

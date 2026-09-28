@@ -35,7 +35,8 @@
     3. 卡片图片原为接口图（plateIconUrl），本组件用 CSS 色块占位
        （mock 数据提供 picture 字段，有值时渲染图片）。
     4. 图片物料已拷贝至本组件 assets/（river-bg、base-bg），样式相对路径引用。
-    5. 响应式：≤1280 收缩、1281–1919 常规、≥1920 放大三档适配。
+    5. 响应式：≤1280 收缩、1281–1919 常规、≥1920 放大三档适配；
+       卡片标题字号随视口宽度动态缩放（__viewport 容器查询 + clamp，14–20px）。
 -->
 <template>
   <div class="river-cards">
@@ -247,6 +248,8 @@ onBeforeUnmount(() => {
     max-width: 722px; // 3 × 234px + 2 × 10px
     margin: 0 auto;
     overflow: hidden;
+    // 声明为行内尺寸容器：内部字号可用 cqw 随视口宽度动态缩放
+    container-type: inline-size;
   }
 
   &__track {
@@ -316,7 +319,8 @@ onBeforeUnmount(() => {
   }
 
   &__name {
-    font-size: 18px;
+    // 字号随视口宽度动态缩放（722px 视口时 2.5cqw ≈ 18px，14–20px 间收放）
+    font-size: clamp(14px, 2.5cqw, 20px);
     font-weight: 400;
     color: var(--rc-name);
   }
@@ -382,10 +386,6 @@ onBeforeUnmount(() => {
       }
     }
 
-    &__name {
-      font-size: 16px;
-    }
-
     &__total {
       font-size: 20px;
 
@@ -416,10 +416,6 @@ onBeforeUnmount(() => {
         width: 58px;
         height: 58px;
       }
-    }
-
-    &__name {
-      font-size: 20px;
     }
 
     &__total {

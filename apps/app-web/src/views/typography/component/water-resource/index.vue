@@ -28,6 +28,7 @@
     3. 原依赖函数 arrTrans（按每 n 个分组的数组分组函数）已内联进本组件。
     4. 89x89 指标图源为接口图片（plateIconUrl），改为 CSS 渐变圆形 + 白点占位图标，
        无图片物料，无需 assets 目录。
+    5. 样式优化：指标名称/数值 p 默认 margin 已重置；轮播箭头适配深色主题。
 -->
 <template>
   <div class="water-resource">
@@ -158,10 +159,21 @@ const pageList = computed(() => arrTrans(PAGE_SIZE, mock.dataList));
     :deep(.slick-slide) {
       height: 100%;
     }
+
+    // 深色主题下的轮播箭头（antd 箭头图标用 currentColor 绘制）
+    :deep(.slick-arrow) {
+      color: rgba(255, 255, 255, 0.45);
+
+      &:hover {
+        color: rgba(255, 255, 255, 0.85);
+      }
+    }
   }
 
   &__page {
     height: 100%;
+    // 三个指标列横向并排
+    display: flex;
   }
 
   &__col {
@@ -196,6 +208,7 @@ const pageList = computed(() => arrTrans(PAGE_SIZE, mock.dataList));
   }
 
   &__col-label {
+    margin: 0;
     font-size: 12px;
     line-height: 22px;
     text-align: center;
@@ -203,6 +216,7 @@ const pageList = computed(() => arrTrans(PAGE_SIZE, mock.dataList));
   }
 
   &__col-value {
+    margin: 0;
     text-align: center;
     font-weight: bold;
     font-size: 14px;

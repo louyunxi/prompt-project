@@ -105,7 +105,8 @@ const computedLineClamp = computed<[number, string]>(() => {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  justify-content: space-around;
+  justify-content: center;
+  gap: 4px;
   background: var(--dm-bg);
   border-radius: 8px;
 

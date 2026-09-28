@@ -29,6 +29,8 @@
     3. 分页逻辑（每页 6 条，grid 2 列 3 行）保留：mock deviceList 8 条，
        按 6 条/页切分为轮播页，每页 6 个 sensor-item。
     4. 图片物料 device-bg.png 已拷贝至本组件 assets/ 目录，模板相对路径引用。
+    5. 样式优化：补齐 ≤1280 / ≥1920 响应式三档；数值溢出省略、右列 min-width: 0
+       防撑破；grid-gap 规范为 gap。
 -->
 <template>
   <div class="sensor-devices">
@@ -172,7 +174,7 @@ const carouselList: DeviceItem[][] = deviceList.reduce<DeviceItem[][]>(
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: repeat(3, 1fr);
-    grid-gap: 10px;
+    gap: 10px;
     height: 100%;
     padding-bottom: 14px;
     box-sizing: border-box;
@@ -209,6 +211,7 @@ const carouselList: DeviceItem[][] = deviceList.reduce<DeviceItem[][]>(
 
   &__right {
     flex: 1;
+    min-width: 0; // 防止长数值把右列撑破
     &--spic {
       justify-content: center;
     }
@@ -233,6 +236,12 @@ const carouselList: DeviceItem[][] = deviceList.reduce<DeviceItem[][]>(
     text-align: right;
     font-weight: 500;
     margin-bottom: 4px;
+  }
+
+  &__value-unit-num {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   &__value-unit {
@@ -267,6 +276,62 @@ const carouselList: DeviceItem[][] = deviceList.reduce<DeviceItem[][]>(
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+  }
+
+  // ---- 响应式：≤1280 收缩 ----
+  @media (max-width: 1280px) {
+    & :deep(.ant-carousel) {
+      padding-top: 8px;
+    }
+
+    &__item {
+      min-width: 140px;
+      padding: 0 8px;
+    }
+
+    &__content {
+      font-size: 12px;
+    }
+
+    &__client-name {
+      margin-bottom: 4px;
+      font-size: 12px;
+    }
+
+    &__sensor-value-unit {
+      font-size: 16px;
+    }
+
+    &__value-unit {
+      font-size: 11px;
+    }
+  }
+
+  // ---- 响应式：≥1920 放大 ----
+  @media (min-width: 1920px) {
+    & :deep(.ant-carousel) {
+      padding-top: 12px;
+    }
+
+    &__item {
+      padding: 0 14px;
+    }
+
+    &__content {
+      font-size: 15px;
+    }
+
+    &__client-name {
+      font-size: 15px;
+    }
+
+    &__sensor-value-unit {
+      font-size: 20px;
+    }
+
+    &__value-unit {
+      font-size: 13px;
+    }
   }
 
   * {

@@ -414,12 +414,14 @@ onBeforeUnmount(() => {
   }
 
   &__group-name {
+    margin: 0;
     line-height: 25px;
     font-size: 18px;
     color: var(--rp-name);
   }
 
   &__group-unit {
+    margin: 0;
     line-height: 25px;
     font-size: 14px;
     color: var(--rp-unit);
@@ -475,17 +477,28 @@ onBeforeUnmount(() => {
   &__info {
     box-sizing: border-box;
     min-width: 118px;
+    // 纵向 flex + 居中，保证与名称、环形图 Y 轴对齐
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
   }
 
   &__info-item {
-    margin: 8px 0;
+    margin: 0;
     display: flex;
+    align-items: center;
     font-size: 14px;
     font-weight: 400;
     color: var(--rp-info-text);
   }
 
+  &__info-name {
+    margin: 0;
+  }
+
   &__info-value {
+    margin: 0;
     font-weight: bold;
     color: var(--rp-info-value);
   }
