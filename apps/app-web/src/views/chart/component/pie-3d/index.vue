@@ -18,7 +18,7 @@
     --p3d-title-color   #9dd1d7   标题文字色（描述区 label）
     --p3d-value-color   #efde46   数值文字色（描述区 totalCount）
     --p3d-unit-color    #efde46   单位文字色（描述区 unit）
-    --p3d-tooltip-bg    #043250   提示框背景色
+    --p3d-tooltip-bg    rgba(0, 0, 0, 0.8)   提示框背景色
     --p3d-tooltip-text  #9ed2d8   提示框文字色
     --p3d-label-name    #9dd1d7   饼图标签名称色（rich b）
     --p3d-label-value   #00f6ff   饼图标签数值色（rich c/d）
@@ -149,7 +149,7 @@ function readPieColors(el: HTMLElement): PieColors {
     style.getPropertyValue(name).trim() || fallback;
 
   return {
-    tooltipBg: read('--p3d-tooltip-bg', '#043250'),
+    tooltipBg: read('--p3d-tooltip-bg', 'rgba(0, 0, 0, 0.8)'),
     tooltipText: read('--p3d-tooltip-text', '#9ed2d8'),
     labelName: read('--p3d-label-name', '#9dd1d7'),
     labelValue: read('--p3d-label-value', '#00f6ff'),
@@ -305,6 +305,7 @@ function getPie3D(
     },
     tooltip: {
       backgroundColor: colors.tooltipBg,
+      borderWidth: 0,
       padding: [13, 14, 13, 11],
       textStyle: {
         fontSize: 12,
@@ -699,7 +700,7 @@ onBeforeUnmount(() => {
   --p3d-title-color: #9dd1d7;
   --p3d-value-color: #efde46;
   --p3d-unit-color: #efde46;
-  --p3d-tooltip-bg: #043250;
+  --p3d-tooltip-bg: rgba(0, 0, 0, 0.8);
   --p3d-tooltip-text: #9ed2d8;
   --p3d-label-name: #9dd1d7;
   --p3d-label-value: #00f6ff;

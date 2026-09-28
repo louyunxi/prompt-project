@@ -16,7 +16,7 @@
     --lt-axis-text          #6dc1cb                轴线/坐标轴文字、图例与标题色
     --lt-grid-border        #072d4a                网格边框
     --lt-split-line         rgba(109,193,203,0.2)  分割线 / 轴线颜色
-    --lt-tooltip-bg         #042940                提示框背景色
+    --lt-tooltip-bg         rgba(0, 0, 0, 0.8)                提示框背景色
     --lt-tooltip-text       #9ed2d8                提示框文字色
     --lt-line-1             0,246,255              折线 1（去年）RGB 分量
     --lt-line-2             251,192,45             折线 2（今年）RGB 分量
@@ -261,7 +261,7 @@ function readLineColors(el: HTMLElement): LineColors {
     axisText: read('--lt-axis-text', '#6dc1cb'),
     gridBorder: read('--lt-grid-border', '#072d4a'),
     splitLine: read('--lt-split-line', 'rgba(109,193,203,0.2)'),
-    tooltipBg: read('--lt-tooltip-bg', '#042940'),
+    tooltipBg: read('--lt-tooltip-bg', 'rgba(0, 0, 0, 0.8)'),
     tooltipText: read('--lt-tooltip-text', '#9ed2d8'),
     line1: read('--lt-line-1', '0,246,255'),
     line2: read('--lt-line-2', '251,192,45'),
@@ -295,6 +295,7 @@ function buildBaseOption(colors: LineColors): echarts.EChartsOption {
       show: true,
       trigger: 'axis',
       backgroundColor: colors.tooltipBg,
+      borderWidth: 0,
       padding: [13, 14, 13, 11],
       textStyle: {
         fontSize: 12,
@@ -669,7 +670,7 @@ onBeforeUnmount(() => {
   --lt-axis-text: #6dc1cb;
   --lt-grid-border: #072d4a;
   --lt-split-line: rgba(109, 193, 203, 0.2);
-  --lt-tooltip-bg: #042940;
+  --lt-tooltip-bg: rgba(0, 0, 0, 0.8);
   --lt-tooltip-text: #9ed2d8;
   --lt-line-1: 0, 246, 255;
   --lt-line-2: 251, 192, 45;

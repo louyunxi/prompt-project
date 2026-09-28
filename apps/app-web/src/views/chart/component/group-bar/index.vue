@@ -12,7 +12,7 @@
     - pnpm >=9.12.0（本仓库 packageManager 固定 pnpm@10.12.4）
 
   颜色变量（CSS 自定义属性，定义于 <style> 的 .group-bar 上，echarts 运行时读取同名变量）：
-    --grp-tooltip-bg     #043250                提示框背景色
+    --grp-tooltip-bg     rgba(0, 0, 0, 0.8)                提示框背景色
     --grp-tooltip-text   #9ed2d8                提示框文字色
     --grp-axis-text      #9dd1d7                坐标轴文字色
     --grp-split-line     rgba(50,206,187,0.15)  数值轴分割线色
@@ -152,7 +152,7 @@ function readGroupBarColors(el: HTMLElement): GroupBarColors {
     style.getPropertyValue(name).trim() || fallback;
 
   return {
-    tooltipBg: read('--grp-tooltip-bg', '#043250'),
+    tooltipBg: read('--grp-tooltip-bg', 'rgba(0, 0, 0, 0.8)'),
     tooltipText: read('--grp-tooltip-text', '#9ed2d8'),
     axisText: read('--grp-axis-text', '#9dd1d7'),
     splitLine: read('--grp-split-line', 'rgba(50, 206, 187, 0.15)'),
@@ -179,6 +179,7 @@ function buildBaseOption(colors: GroupBarColors): echarts.EChartsOption {
         shadowStyle: { color: 'rgba(0, 0, 0, 0.1)' },
       },
       backgroundColor: colors.tooltipBg,
+      borderWidth: 0,
       position: 'top',
       padding: [13, 14, 13, 11],
       textStyle: { fontSize: 12, color: colors.tooltipText },
@@ -361,7 +362,7 @@ onBeforeUnmount(() => {
 
 <style lang="scss" scoped>
 .group-bar {
-  --grp-tooltip-bg: #043250;
+  --grp-tooltip-bg: rgba(0, 0, 0, 0.8);
   --grp-tooltip-text: #9ed2d8;
   --grp-axis-text: #9dd1d7;
   --grp-split-line: rgba(50, 206, 187, 0.15);

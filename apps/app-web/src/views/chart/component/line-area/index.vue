@@ -12,7 +12,7 @@
     - pnpm >=9.12.0（本仓库 packageManager 固定 pnpm@10.12.4）
 
   颜色变量（CSS 自定义属性，定义于 <style> 的 .line-area 上，echarts 运行时读取同名变量）：
-    --la-tooltip-bg       #042940                      提示框背景色
+    --la-tooltip-bg       rgba(0, 0, 0, 0.8)                      提示框背景色
     --la-tooltip-text     #9ed2d8                      提示框文字色
     --la-title-text       #6dc1cb                      空数据标题文字色
     --la-legend-text      rgba(255,255,255,0.5)        图例文字色
@@ -163,7 +163,7 @@ function readLineAreaColors(el: HTMLElement): LineAreaColors {
     style.getPropertyValue(name).trim() || fallback;
 
   return {
-    tooltipBg: read('--la-tooltip-bg', '#042940'),
+    tooltipBg: read('--la-tooltip-bg', 'rgba(0, 0, 0, 0.8)'),
     tooltipText: read('--la-tooltip-text', '#9ed2d8'),
     titleText: read('--la-title-text', '#6dc1cb'),
     legendText: read('--la-legend-text', 'rgba(255, 255, 255, 0.5)'),
@@ -228,6 +228,7 @@ function buildBaseOption(colors: LineAreaColors): echarts.EChartsOption {
       show: true,
       trigger: 'axis',
       backgroundColor: colors.tooltipBg,
+      borderWidth: 0,
       padding: [13, 14, 13, 11],
       textStyle: { fontSize: 12, color: colors.tooltipText },
       formatter: (params: any) => {
@@ -401,7 +402,7 @@ onBeforeUnmount(() => {
 
 <style lang="scss" scoped>
 .line-area {
-  --la-tooltip-bg: #042940;
+  --la-tooltip-bg: rgba(0, 0, 0, 0.8);
   --la-tooltip-text: #9ed2d8;
   --la-title-text: #6dc1cb;
   --la-legend-text: rgba(255, 255, 255, 0.5);

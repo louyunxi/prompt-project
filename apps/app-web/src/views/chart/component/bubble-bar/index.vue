@@ -12,7 +12,7 @@
     - pnpm >=9.12.0（本仓库 packageManager 固定 pnpm@10.12.4）
 
   颜色变量（CSS 自定义属性，定义于 <style> 的 .bubble-bar 上，echarts 运行时读取同名变量）：
-    --bb-tooltip-bg      rgba(3, 21, 32, 0.72)     提示框背景色
+    --bb-tooltip-bg      rgba(0, 0, 0, 0.8)     提示框背景色
     --bb-tooltip-text    #9ED2D8                   提示框文字色
     --bb-axis-text       #9DD1D7                   分类轴/数值轴文字色
     --bb-yaxis-name      #6DC1CB                   y 轴单位名称文字色
@@ -113,7 +113,7 @@ function readBarColors(el: HTMLElement): BubbleColors {
     style.getPropertyValue(name).trim() || fallback;
 
   return {
-    tooltipBg: read('--bb-tooltip-bg', 'rgba(3, 21, 32, 0.72)'),
+    tooltipBg: read('--bb-tooltip-bg', 'rgba(0, 0, 0, 0.8)'),
     tooltipText: read('--bb-tooltip-text', '#9ED2D8'),
     axisText: read('--bb-axis-text', '#9DD1D7'),
     yAxisName: read('--bb-yaxis-name', '#6DC1CB'),
@@ -136,6 +136,7 @@ function buildBaseOption(colors: BubbleColors): echarts.EChartsOption {
         type: 'none',
       },
       backgroundColor: colors.tooltipBg,
+      borderWidth: 0,
       position: 'top',
       padding: [13, 14, 13, 11],
       textStyle: {
@@ -297,7 +298,7 @@ onBeforeUnmount(() => {
 
 <style lang="scss" scoped>
 .bubble-bar {
-  --bb-tooltip-bg: rgba(3, 21, 32, 0.72);
+  --bb-tooltip-bg: rgba(0, 0, 0, 0.8);
   --bb-tooltip-text: #9ed2d8;
   --bb-axis-text: #9dd1d7;
   --bb-yaxis-name: #6dc1cb;

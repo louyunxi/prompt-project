@@ -15,7 +15,7 @@
     - pnpm >=9.12.0（本仓库 packageManager 固定 pnpm@10.12.4）
 
   颜色变量（CSS 自定义属性，定义于 <style> 的 .donut-ring 上，echarts 运行时读取同名变量）：
-    --dr-tooltip-bg     #043250                         图表提示框背景色
+    --dr-tooltip-bg     rgba(0, 0, 0, 0.8)                         图表提示框背景色
     --dr-tooltip-text   #9ed2d8                         图表提示框文字色
     --dr-title-text     #ffffff                         中心标题 / 图例标题文字色
     --dr-num-text       #00f6ff                         中心汇总数值文字色
@@ -30,7 +30,7 @@
        本组件已全部去除，改为 mock 数据 + 组件内自包含渲染。
     2. 子组件 echartsPie / pieText 已全部内联：Option 构建、echarts init、中心 slot 文字区、图例
        （竖线图标 + formatUnitStr 单位 & 拆分）均在本组件内实现。
-    3. 图表配置（radius ['70%','78%'] / minAngle 20 / tooltip 背景 #043250 position 'right' /
+    3. 图表配置（radius ['70%','78%'] / minAngle 20 / tooltip 背景 rgba(0, 0, 0, 0.8) position 'right' /
        value 为 0 时置 null 保证颜色不错位 / unitMu 单位含万时 value/10000 后显示）与源组件保持一致。
     4. 该图表无图片物料，无需 assets 资源目录。
 -->
@@ -155,7 +155,7 @@ function readPieColors(el: HTMLElement): PieColors {
     style.getPropertyValue(name).trim() || fallback;
 
   return {
-    tooltipBg: read('--dr-tooltip-bg', '#043250'),
+    tooltipBg: read('--dr-tooltip-bg', 'rgba(0, 0, 0, 0.8)'),
     tooltipText: read('--dr-tooltip-text', '#9ed2d8'),
   };
 }
@@ -196,6 +196,7 @@ function buildBaseOption(colors: PieColors): echarts.EChartsOption {
       show: true,
       trigger: 'item',
       backgroundColor: colors.tooltipBg,
+      borderWidth: 0,
       position: 'right',
       padding: [13, 14, 13, 11],
       textStyle: {
@@ -320,7 +321,7 @@ onBeforeUnmount(() => {
 <style lang="scss" scoped>
 .donut-ring {
   // —— 颜色变量（顶部注释已列出） ——
-  --dr-tooltip-bg: #043250;
+  --dr-tooltip-bg: rgba(0, 0, 0, 0.8);
   --dr-tooltip-text: #9ed2d8;
   --dr-title-text: #ffffff;
   --dr-num-text: #00f6ff;

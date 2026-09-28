@@ -12,7 +12,7 @@
     - pnpm >=9.12.0（本仓库 packageManager 固定 pnpm@10.12.4）
 
   颜色变量（CSS 自定义属性，定义于 <style> 的 .donut 上，echarts 运行时读取同名变量）：
-    --dn-tooltip-bg     #043250                        提示框背景色
+    --dn-tooltip-bg     rgba(0, 0, 0, 0.8)                        提示框背景色
     --dn-tooltip-text   #9ed2d8                        提示框文字色
     --dn-center-title   #9dd1d7                        中心标题文字色
     --dn-center-num     #efde46                        中心数值文字色
@@ -175,7 +175,7 @@ function readDonutColors(el: HTMLElement): DonutColors {
     style.getPropertyValue(name).trim() || fallback;
 
   return {
-    tooltipBg: read('--dn-tooltip-bg', '#043250'),
+    tooltipBg: read('--dn-tooltip-bg', 'rgba(0, 0, 0, 0.8)'),
     tooltipText: read('--dn-tooltip-text', '#9ed2d8'),
     centerTitle: read('--dn-center-title', '#9dd1d7'),
     centerNum: read('--dn-center-num', '#efde46'),
@@ -203,6 +203,7 @@ function buildPieOption(colors: DonutColors): echarts.EChartsOption {
       trigger: 'item',
       padding: [13, 14, 13, 11],
       backgroundColor: colors.tooltipBg,
+      borderWidth: 0,
       textStyle: { fontSize: 12, color: colors.tooltipText },
       formatter: (a: any) => {
         const parts = [a.data.name, ': ', a.data.initialValue, a.data.unit];
@@ -368,7 +369,7 @@ onBeforeUnmount(() => {
 
 <style lang="scss" scoped>
 .donut {
-  --dn-tooltip-bg: #043250;
+  --dn-tooltip-bg: rgba(0, 0, 0, 0.8);
   --dn-tooltip-text: #9ed2d8;
   --dn-center-title: #9dd1d7;
   --dn-center-num: #efde46;

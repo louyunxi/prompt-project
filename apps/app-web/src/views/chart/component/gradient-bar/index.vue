@@ -12,7 +12,7 @@
     - pnpm >=9.12.0（本仓库 packageManager 固定 pnpm@10.12.4）
 
   颜色变量（CSS 自定义属性，定义于 <style> 的 .gradient-bar 上，echarts 运行时读取同名变量）：
-    --gb-tooltip-bg     #042940                提示框背景色
+    --gb-tooltip-bg     rgba(0, 0, 0, 0.8)                提示框背景色
     --gb-tooltip-text   #9ed2d8                提示框文字色
     --gb-axis-text      #ffffff                分类轴文字色
     --gb-value-text     #00f6ff                数值轴文字色
@@ -82,7 +82,7 @@ function readBarColors(el: HTMLElement): BarColors {
     style.getPropertyValue(name).trim() || fallback;
 
   return {
-    tooltipBg: read('--gb-tooltip-bg', '#042940'),
+    tooltipBg: read('--gb-tooltip-bg', 'rgba(0, 0, 0, 0.8)'),
     tooltipText: read('--gb-tooltip-text', '#9ed2d8'),
     axisText: read('--gb-axis-text', '#ffffff'),
     valueText: read('--gb-value-text', '#00f6ff'),
@@ -111,6 +111,7 @@ function buildBaseOption(colors: BarColors): echarts.EChartsOption {
         return `${name}：${count}`;
       },
       backgroundColor: colors.tooltipBg,
+      borderWidth: 0,
       padding: [13, 14, 13, 11],
       textStyle: {
         fontSize: 12,
@@ -261,7 +262,7 @@ onBeforeUnmount(() => {
 
 <style lang="scss" scoped>
 .gradient-bar {
-  --gb-tooltip-bg: #042940;
+  --gb-tooltip-bg: rgba(0, 0, 0, 0.8);
   --gb-tooltip-text: #9ed2d8;
   --gb-axis-text: #ffffff;
   --gb-value-text: #00f6ff;
