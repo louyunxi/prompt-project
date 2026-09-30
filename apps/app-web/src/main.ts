@@ -61,6 +61,11 @@ const componentSources = import.meta.glob<string>(
   { query: '?raw', import: 'default', eager: true },
 );
 
+// views/<category>/index.vue 分类主页面（微应用模式按 category 直接渲染，按需懒加载）
+const categoryPageModules = import.meta.glob<{ default: Component }>(
+  './views/*/index.vue',
+);
+
 /**
  * 从组件 index.vue 源码头部注释中提取中文标题。
  * 约定注释格式：`组件名称：<EnglishName>（<ChineseTitle>）`，
@@ -85,7 +90,10 @@ function listComponentMeta(category: string): ComponentMeta[] {
     const source = componentSources[path];
     items.push({
       name,
-      title: extractTitleFromSource(typeof source === 'string' ? source : '', name),
+      title: extractTitleFromSource(
+        typeof source === 'string' ? source : '',
+        name,
+      ),
     });
   }
   return items.sort((a, b) => a.name.localeCompare(b.name));
@@ -103,7 +111,7 @@ function readPrompt(componentName: string): string {
 
 let appInstance: VueApp<Element> | null = null;
 
-function render(props: MicroProps = {}) {
+async function render(props: MicroProps = {}) {
   const { container, category, componentName, registerApi, apiOnly } = props;
   // 独立运行时使用自身路由与布局；作为微应用时按主应用传入的 category 平铺组件
   const isMicro = Boolean(container);
@@ -125,8 +133,9 @@ function render(props: MicroProps = {}) {
   appInstance = null;
 
   // apiOnly：仅注册 API，不渲染任何业务组件（discovery 阶段）
-  // 单组件模式（主应用 PcCompCard 一对一挂载）→ SingleComponent
-  // 微应用平铺模式（主应用旧 MicroContainer）→ Gallery
+  // 单组件模式（主应用一对一定位某个组件）→ SingleComponent
+  // 微应用 + category → 直接渲染分类主页面 views/<category>/index.vue
+  // 分类主页面缺失时兜底 → Gallery 平铺
   // 独立运行 → App
   if (apiOnly && isMicro) {
     if (typeof registerApi === 'function') {
@@ -138,17 +147,29 @@ function render(props: MicroProps = {}) {
     return;
   }
 
+  // 微应用 + 分类（非单组件模式）：懒加载子应用分类主页面
+  let pageComp: Component | null = null;
+  if (isMicro && category && !useSingle) {
+    const loader = categoryPageModules[`./views/${category}/index.vue`];
+    if (loader) pageComp = (await loader()).default;
+  }
+
+  let pageProps: Record<string, unknown> | undefined;
+  if (isMicro) {
+    if (useSingle) pageProps = { category: category ?? '', componentName };
+    else if (!pageComp) pageProps = { category: category ?? '' };
+  }
+
   appInstance = createApp(
-    useSingle ? SingleComponent : isMicro ? Gallery : App,
-    isMicro
-      ? {
-          category: category ?? '',
-          ...(useSingle ? { componentName } : {}),
-        }
-      : undefined,
+    useSingle ? SingleComponent : pageComp ?? (isMicro ? Gallery : App),
+    pageProps,
   );
   appInstance.use(pinia);
-  if (!isMicro) appInstance.use(router);
+  // 微应用模式同样要装 router：分类页 setup 里就用 useRoute() 读 ?page=（见 router/index.ts 的 MicroCategory 占位路由）
+  appInstance.use(router);
+  // 等首次路由解析完成再挂载，分类页 setup 时 useRoute() 才是最终路由（否则拿不到 query.page 且 route 可能为 undefined）
+  // isReady 失败（如首屏路由懒加载异常）不阻塞挂载，交给页面自身兜底
+  await router.isReady().catch(() => undefined);
   appInstance.mount(target);
 
   // 只要是微应用，就把 API 暴露给主应用（无论渲染 Gallery / SingleComponent）
@@ -176,7 +197,8 @@ export async function bootstrap() {
 
 export async function mount(props: MicroProps) {
   console.log('[app-web] mount', props);
-  render(props);
+  // await：让 qiankun 的 loadPromise 在页面渲染完成后才 resolve（主应用据此关 loading）
+  await render(props);
 }
 
 export async function unmount() {

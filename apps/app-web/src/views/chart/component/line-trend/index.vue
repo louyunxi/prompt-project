@@ -48,7 +48,7 @@
         :options="cropOptions"
         option-filter-prop="label"
         @change="handleChangeCrop"
-      ></a-select>
+      />
     </div>
     <div
       ref="chartRef"
@@ -161,12 +161,29 @@ const MOCK_CROP_LIST: MockCrop[] = [
 function debounce(fn: (...args: unknown[]) => void, delay = 200) {
   let timeout: ReturnType<typeof setTimeout> | null = null;
   return (...args: unknown[]) => {
-    if (timeout) clearTimeout(timeout);
+    if (timeout) {
+      clearTimeout(timeout);
+    }
     timeout = setTimeout(() => {
       fn(...args);
       timeout = null;
     }, delay);
   };
+}
+
+/** 字号缩放基准宽度：容器宽度为 360px 时字号保持设计原值（1 倍） */
+const FONT_BASE_WIDTH = 360;
+/** 字号缩放系数钳制范围，避免极端容器下文字过大 / 过小 */
+const FONT_SCALE_MIN = 0.75;
+const FONT_SCALE_MAX = 1.5;
+
+/** 依据容器宽度计算字号缩放系数（按容器比例等比缩放） */
+function getFontScale(el: HTMLElement): number {
+  const width = el.clientWidth || FONT_BASE_WIDTH;
+  return Math.min(
+    FONT_SCALE_MAX,
+    Math.max(FONT_SCALE_MIN, width / FONT_BASE_WIDTH),
+  );
 }
 
 /** 日期格式化（内联自源项目 @/common/fn 的 dateFormat，仅保留本组件用到的 y/M/d/h/m/s/q/S 规则） */
@@ -268,27 +285,35 @@ function readLineColors(el: HTMLElement): LineColors {
   };
 }
 
-/** 基础配置（对应源 BASE_CHART_OPTION，颜色由 CSS 变量注入） */
-function buildBaseOption(colors: LineColors): echarts.EChartsOption {
+/**
+ * 基础配置（对应源 BASE_CHART_OPTION，颜色由 CSS 变量注入）
+ * @param fontScale 字号缩放系数（按容器宽度等比计算），尺寸相关配置统一乘以此系数
+ */
+function buildBaseOption(
+  colors: LineColors,
+  fontScale: number,
+): echarts.EChartsOption {
   return {
     // 暂无数据的标题
     title: {
       show: false,
       text: '暂无数据',
       textStyle: {
-        fontSize: 12,
+        fontSize: 12 * fontScale,
         color: colors.axisText,
       },
       left: 'center',
       top: 'center',
     },
     // 表的网格配置
+    // top 留够空间放图例 + Y 轴单位；bottom 留足空间给 X 轴 label
     grid: {
       show: true,
       borderColor: colors.gridBorder,
-      top: '18%',
+      top: '22%',
+      right: '6%',
       left: '12%',
-      bottom: '8%',
+      bottom: '12%',
     },
     // 鼠标悬浮的样式
     tooltip: {
@@ -296,9 +321,9 @@ function buildBaseOption(colors: LineColors): echarts.EChartsOption {
       trigger: 'axis',
       backgroundColor: colors.tooltipBg,
       borderWidth: 0,
-      padding: [13, 14, 13, 11],
+      padding: [13 * fontScale, 14 * fontScale, 13 * fontScale, 11 * fontScale],
       textStyle: {
-        fontSize: 12,
+        fontSize: 12 * fontScale,
         color: colors.tooltipText,
       },
     },
@@ -308,15 +333,16 @@ function buildBaseOption(colors: LineColors): echarts.EChartsOption {
       type: 'plain',
       textStyle: {
         color: colors.axisText,
-        fontSize: 12,
+        fontSize: 12 * fontScale,
       },
       icon: 'circle',
       backgroundColor: 'rgba(255, 255, 255, 0)',
-      top: 3,
+      // 图例跟容器顶部保持动态高度间距（用百分比，相对容器高度）
+      top: '3%',
       left: 'center',
-      itemWidth: 10,
-      itemHeight: 8,
-      height: 20,
+      itemWidth: 10 * fontScale,
+      itemHeight: 8 * fontScale,
+      height: 16 * fontScale,
     },
     // x 轴样式配置
     xAxis: {
@@ -324,7 +350,7 @@ function buildBaseOption(colors: LineColors): echarts.EChartsOption {
       boundaryGap: false,
       axisLabel: {
         color: colors.axisText,
-        fontSize: 12,
+        fontSize: 12 * fontScale,
         align: 'center',
       },
       axisTick: {
@@ -341,9 +367,10 @@ function buildBaseOption(colors: LineColors): echarts.EChartsOption {
     // y 轴样式配置
     yAxis: {
       nameTextStyle: {
-        fontSize: 12,
+        fontSize: 12 * fontScale,
         color: colors.axisText,
-        padding: [4, 8, 5, 8],
+        // Y 轴单位降低（上 padding 减小，让 name 更贴近刻度）
+        padding: [0, 8, 3, 8],
       },
       axisLine: {
         show: false,
@@ -362,7 +389,7 @@ function buildBaseOption(colors: LineColors): echarts.EChartsOption {
       },
       axisLabel: {
         color: colors.axisText,
-        fontSize: 12,
+        fontSize: 12 * fontScale,
       },
     },
     dataZoom: [{ show: false }],
@@ -396,6 +423,8 @@ const chartRef = ref<HTMLDivElement>();
 let chartInstance: echarts.ECharts | null = null;
 /** 当前读取到的颜色变量（init 时读取，供 series 渲染使用） */
 let currentLineColors: LineColors | null = null;
+/** 当前字号缩放系数（随容器宽度变化，resize 时按比例重建） */
+let fontScale = 1;
 
 const cropList = ref<CropOption[]>([]);
 // a-select 的 SelectValue 不含 null，未选择时用空字符串占位
@@ -419,7 +448,9 @@ function loadCropList() {
 
 /** 加载品类价格并渲染双折线（对应源 getCropPriceListController，改为 mock） */
 async function getCropPriceListController() {
-  if (!chartInstance || !currentLineColors) return;
+  if (!chartInstance || !currentLineColors) {
+    return;
+  }
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
@@ -602,7 +633,9 @@ async function handleChangeCrop() {
 
 /** 高亮显示最近一个有数据月份的 tooltip（对应源 tiggerLastMonthTip） */
 function tiggerLastMonthTip() {
-  if (!(lastMonthIndex.value >= 0)) return;
+  if (!(lastMonthIndex.value >= 0)) {
+    return;
+  }
   chartInstance?.dispatchAction({
     type: 'showTip',
     seriesIndex: showTipSeriesIndex.value,
@@ -610,12 +643,14 @@ function tiggerLastMonthTip() {
   });
 }
 
-/** 初始化图表（内联 GSChart 的 init 逻辑） */
-function initChart() {
-  if (!chartRef.value) return;
-  currentLineColors = readLineColors(chartRef.value);
-  chartInstance = echarts.init(chartRef.value);
-  chartInstance.setOption(buildBaseOption(currentLineColors));
+/** 渲染基础配置（init 与 resize 重建共用） */
+function renderBase() {
+  if (!chartInstance || !currentLineColors) {
+    return;
+  }
+  chartInstance.setOption(buildBaseOption(currentLineColors, fontScale), {
+    notMerge: true,
+  });
   chartInstance.setOption({
     xAxis: {
       data: ALL_MONTHS,
@@ -627,6 +662,16 @@ function initChart() {
       },
     },
   });
+}
+
+/** 初始化图表（内联 GSChart 的 init 逻辑） */
+function initChart() {
+  if (!chartRef.value) {
+    return;
+  }
+  currentLineColors = readLineColors(chartRef.value);
+  chartInstance = echarts.init(chartRef.value);
+  renderBase();
   loadCropList();
   void getCropPriceListController();
 }
@@ -640,7 +685,19 @@ function initChart() {
  * 比 window.resize 监听更准确；组件销毁时 disconnect 释放 observer。
  */
 const handleResize = debounce(() => {
-  chartInstance?.resize();
+  const el = chartRef.value;
+  if (!el || !chartInstance) {
+    return;
+  }
+  // 容器宽度变化超过阈值时，按比例重建 option（字号随容器等比缩放）
+  const nextScale = getFontScale(el);
+  if (Math.abs(nextScale - fontScale) >= 0.05) {
+    fontScale = nextScale;
+    renderBase();
+    // 重建后重新加载当前品类价格，保留 cropId 选中态
+    void getCropPriceListController();
+  }
+  chartInstance.resize();
 }, 200);
 
 /** chartRef 尺寸变化观察器 */
@@ -680,6 +737,10 @@ onBeforeUnmount(() => {
 
   position: relative;
   width: 100%;
+  height: 100%;
+  // 最小宽高：父容器无确定高度时兜底（如画廊 auto 高度盒子）
+  min-width: 260px;
+  min-height: 240px;
 
   &__tools {
     position: absolute;
@@ -721,9 +782,11 @@ onBeforeUnmount(() => {
     }
   }
 
+  // 图表容器铺满组件，高度随父容器等比伸缩（min-height 兜底避免塌陷）
   &__chart {
     width: 100%;
-    height: 320px;
+    height: 100%;
+    min-height: 240px;
   }
 }
 
@@ -731,12 +794,8 @@ onBeforeUnmount(() => {
 @media (max-width: 1280px) {
   .line-trend {
     &__tools {
-      top: 0;
+      top: 3px;
       right: 8px;
-    }
-
-    &__chart {
-      height: 300px;
     }
   }
 }
@@ -744,7 +803,7 @@ onBeforeUnmount(() => {
 @media (min-width: 1281px) and (max-width: 1919px) {
   .line-trend {
     &__tools {
-      top: 1px;
+      top: 4px;
       right: 14px;
     }
   }
@@ -753,7 +812,7 @@ onBeforeUnmount(() => {
 @media (min-width: 1920px) {
   .line-trend {
     &__tools {
-      top: 1px;
+      top: 4px;
       right: 18px;
     }
   }

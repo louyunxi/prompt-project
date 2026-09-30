@@ -123,7 +123,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 
 /** 区域项（对应源组件 plateMetricList 中的单条数据） */
 interface AreaItem {
@@ -159,8 +159,12 @@ const dataList = mock.dataList;
 
 const carouselRef = ref<CarouselExpose>();
 
-/** 轮播列表容器引用（用于测量宽度动态计算每页数量） */
-const listBoxRef = ref<HTMLDivElement>();
+/**
+ * 轮播列表容器引用（用于测量宽度动态计算每页数量）。
+ * 注意：模板里这个 ref 在 v-for 内，Vue 3 会把它收集成数组；
+ * 这里只取 [0] 测量宽度，所有页的 listBox 同一布局、宽度一致。
+ */
+const listBoxRef = ref<HTMLDivElement[]>([]);
 
 /**
  * 每页展示数量：按容器宽度动态计算（放不下 4 个放 3 个，再放不下放 2 个）。
@@ -170,14 +174,13 @@ const perPage = ref(4);
 
 /** 根据容器宽度计算每页可容纳数量（最少 2 个，最多 4 个） */
 function updatePerPage() {
-  const el = listBoxRef.value;
-  const width = el?.clientWidth ?? 0;
+  const el = listBoxRef.value[0];
+  if (!el) return;
+  const width = el.clientWidth;
   if (!width) return;
   // 单项最小可用宽度：按当前档位的图片尺寸（CSS 变量）+ 间隔估算
   const imgSize =
-    parseFloat(
-      el ? getComputedStyle(el).getPropertyValue('--ca-img-size') : ''
-    ) || 100;
+    parseFloat(getComputedStyle(el).getPropertyValue('--ca-img-size')) || 100;
   const itemMinWidth = imgSize + 24;
   let count = Math.floor(width / itemMinWidth);
   if (count >= 4) count = 4;
@@ -188,9 +191,13 @@ function updatePerPage() {
 let resizeObserver: ResizeObserver | null = null;
 
 onMounted(() => {
-  updatePerPage();
-  resizeObserver = new ResizeObserver(updatePerPage);
-  if (listBoxRef.value) resizeObserver.observe(listBoxRef.value);
+  // a-carousel 异步渲染分页 DOM，等下一帧再访问 ref
+  nextTick(() => {
+    updatePerPage();
+    resizeObserver = new ResizeObserver(updatePerPage);
+    const target = listBoxRef.value[0];
+    if (target) resizeObserver.observe(target);
+  });
 });
 
 onBeforeUnmount(() => {

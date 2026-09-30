@@ -1,8 +1,5 @@
 <template>
-  <div
-    class="preview-stage"
-    :class="{ 'preview-stage--filled': matched }"
-  >
+  <div class="preview-stage" :class="{ 'preview-stage--filled': matched }">
     <div v-if="matched" class="preview-grid">
       <div
         v-for="size in sizes"
@@ -47,7 +44,9 @@ const componentModules = import.meta.glob<{ default: Component }>(
 );
 
 const matched = computed<Component | null>(() => {
-  if (!props.category || !props.componentName) return null;
+  if (!props.category || !props.componentName) {
+    return null;
+  }
   for (const [path, mod] of Object.entries(componentModules)) {
     if (
       path.includes(`/views/${props.category}/component/`) &&
@@ -119,7 +118,14 @@ const sizes = [
     color: var(--ink-color-2);
   }
 
+  /**
+   * 每个尺寸容器内用 flex 上下左右居中，组件在容器内呈现的是居中态；
+   * 组件尺寸超出容器时由 overflow 兜底滚动。
+   */
   &__box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     overflow: auto;
     border: 1px solid var(--line-color);
     border-radius: 6px;

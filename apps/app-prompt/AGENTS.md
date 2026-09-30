@@ -184,56 +184,39 @@ pnpm lint:prettier    # Prettier
 pnpm lint:stylelint   # Stylelint
 ```
 
-## 10. PC 端二级菜单公共接口规则（PcCompCard）
+## 10. PC 端二级菜单渲染规则（全容器直渲染）
 
-> 本规则约束 **PC 端二级菜单所有页面** 展示子应用（`app-web`）组件的方式，确保 PC 端是子应用组件的「公共接口」。
+> 本规则约束 **PC 端二级菜单所有页面** 展示子应用（`app-web`）内容的方式：不再逐个组件建容器，而是**一个充满内容区的容器直接展示子应用对应的分类主页面**。
 
 ### 10.1 强制性约束
 
-`src/views/prompt/pc/**` 下凡是展示子应用组件的页面，**必须** 使用 `src/components/common/PcCompCard.vue`（`<PcCompCard>`）将每个子应用组件**一对一包裹**，**禁止** 直接把子应用 DOM 渲染到页面里、或用其他自定义容器替代。
+`src/views/prompt/pc/**` 下展示子应用内容时，**必须** 走「统一渲染器 + 单一满容器」：
 
-- **目的**：统一 PC 端「复制 prompt / 编辑 / 换肤」等公共操作的展示与触发面；保证后续新增子应用组件或新增二级菜单页时无需重复设计外壳。
-- **位置**：`apps/app-prompt/src/components/common/PcCompCard.vue`（**这是 PC 端子应用组件唯一的公共接口**）。
+- **唯一渲染器**：[MicroContainer.vue](file:///e:/AI/prompt-project/apps/app-prompt/src/views/prompt/pc/MicroContainer.vue)，router 自动把 9 个分类路由到它。它渲染一个充满内容区的容器（`.micro-container__stage`），用 `loadSubApp` 把子应用整体挂进该容器，并按 `route.meta.category` 让子应用渲染自己的分类主页面 `apps/app-web/src/views/<category>/index.vue`。
 - **适用范围**：所有 PC 端二级菜单页（`layout` / `map` / `typography` / `modal` / `effect` / `chart` / `widget` / `background` / `font` 等 9 分类）。
-- **统一入口**：[MicroContainer.vue](file:///e:/AI/prompt-project/apps/app-prompt/src/views/prompt/pc/MicroContainer.vue) 是 PC 端二级菜单**唯一的渲染器**，router 自动把所有 9 个分类路由到它；它内部按 `route.meta.category` 加载子应用并对每个组件用 `<PcCompCard>` 包裹。**不要** 在 PC 端为单个分类新增 `index.vue`（h5/uniapp 才需要，PC 端全部走 MicroContainer）。
+- **禁止**：把子应用渲染到隐藏容器再 `appendChild` 搬运 DOM；**禁止** 在主应用里按组件列表逐个建容器（卡片式外壳）；**禁止** 硬编码子应用组件名 / 中文标题 / 组件清单。
+- **禁止** 在 PC 端为单个分类新增 `index.vue`（h5/uniapp 才需要，PC 端全部走 MicroContainer）。
 
-### 10.2 PcCompCard Props 契约
+### 10.2 主应用 ↔ 子应用契约
 
-| Prop | 必填 | 说明 |
-|------|------|------|
-| `componentName` | ✅ | 子应用组件名（kebab-case，与子应用 `views/<category>/component/<name>/` 目录名一致），用于从 `prompt.txt` 读取文本 |
-| `title` | ❌ | 中文标题；省略时回退为 `componentName`；与 `componentName` 不一致时右侧追加 `<a-tag>` 显示组件名 |
-| `api` | ❌ | 子应用通过 `props.registerApi` 注入的 `SubAppApi`（见 `apps/app-web/src/main.ts`），用于「复制 prompt」按钮；未传或 API 未就绪时按钮提示「子应用 API 尚未就绪」 |
+| 方向 | 契约 |
+|------|------|
+| 主应用 → 子应用 | `loadSubApp('app-web', el, { category })`，`category` 取自 `route.meta.category`；容器必须是**真实可见**的 DOM 节点（qiankun 需要正常尺寸的容器，避免 echarts 初始化拿不到宽高） |
+| 子应用 → 主应用 | 子应用 `mount(props)` 内 `await render(props)`；`isMicro && category && !componentName` 时渲染 `views/<category>/index.vue`（缺失则兜底 Gallery 平铺）。主应用 `await microApp.loadPromise` 即代表页面已渲染完成，据此关闭 loading |
 
-### 10.3 使用模板（参考 MicroContainer.vue）
+> 路由：子应用在微应用模式下**同样 `use(router)`**（与主应用共用 hash URL），并在 `router/index.ts` 中注册 `/prompt/pc/:category` 占位路由——分类页 `setup` 里用 `useRoute()` 读 `?page=`（分页初始值）、切页时用 `useRouter().replace` 回写主应用 hash。若去掉该路由或漏装 router，分类页 setup 会因 `route === undefined` 抛错，导致 qiankun parcel 挂掉、页面白屏。
 
-```vue
-<PcCompCard
-  v-for="comp in components"
-  :key="comp.name"
-  :component-name="comp.name"
-  :title="comp.title"
-  :api="subAppApi"
->
-  <!-- 子应用组件挂载点：典型做法是 appendChild 子应用渲染出的节点到此容器 -->
-  <div :ref="(el) => bindMountEl(el as Element | null, comp.name)" class="..." />
-</PcCompCard>
-```
+子应用仍保留 `props.registerApi`（`SubAppApi`：`getPromptContent` / `listComponents`）与单组件模式（`componentName`）能力，但 PC 端满容器模式**已不再使用**。
 
-子应用组件列表与 `api` 通过 `subAppApi.listComponents(category)` 动态获取（详见 `MicroContainer.vue` 的 `mountAll`），**禁止** 在主应用里硬编码子应用组件名或中文标题。
-
-### 10.4 新增 PC 端二级菜单分类的检查清单
+### 10.3 新增 PC 端二级菜单分类的检查清单
 
 - [ ] 路由在 `src/router/index.ts` 的 `categories` 数组中追加分类名（如 `'my-cat'`），router 自动生成路由并指向 `MicroContainer.vue`。
-- [ ] 子应用新增 `apps/app-web/src/views/<category>/index.vue`（Gallery 页）和 `apps/app-web/src/views/<category>/component/<name>/index.vue`（每个组件），组件 HTML 头部加上注释 `<!-- 组件名称：MyName（中文标题） -->` 以便 `TITLE_RE` 解析。
-- [ ] **不需要** 在 PC 端新增任何 `index.vue`——`MicroContainer.vue` 会按 `route.meta.category` 自动加载对应分类。
-- [ ] 每个子应用组件的 DOM 通过 slot 容器注入（典型：子应用渲染到隐藏节点，主应用 `appendChild` 到 slot）。
-- [ ] 主应用 `MicroContainer.vue` 不需要任何改动。
+- [ ] 子应用新增 `apps/app-web/src/views/<category>/index.vue`（分类主页面）与 `apps/app-web/src/views/<category>/component/<name>/index.vue`（每个组件）。
+- [ ] **不需要** 在 PC 端新增任何 `index.vue`，**不需要** 改动 `MicroContainer.vue`。
 
-### 10.5 命名与引用
+### 10.4 PcCompCard（保留，但 PC 端已不再使用）
 
-- 文件名 / 组件名 / 类型别名一律使用 **`PcCompCard`**（`P` 大写、`Comp` 是 Component 缩写）；不要使用 `CompCard`、`PcCard` 等旧名或其他自定义命名。
-- 所有引用通过 `@/components/common/PcCompCard.vue` 导入；不要直接 import 子应用组件。
+`src/components/common/PcCompCard.vue` 是旧的「每个子应用组件一对一卡片」外壳，**当前 PC 端渲染路径已不再引用**（文件保留，供后续需要卡片式外壳时复用）。新增 PC 端页面**不要** 再引入它。
 
 ## 11. AI Agent 开发注意事项
 

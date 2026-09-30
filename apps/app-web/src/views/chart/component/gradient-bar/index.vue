@@ -40,12 +40,26 @@ import * as echarts from 'echarts';
 function debounce(fn: (...args: unknown[]) => void, delay = 300) {
   let timeout: ReturnType<typeof setTimeout> | null = null;
   return (...args: unknown[]) => {
-    if (timeout) clearTimeout(timeout);
+    if (timeout) {
+      clearTimeout(timeout);
+    }
     timeout = setTimeout(() => {
       fn(...args);
       timeout = null;
     }, delay);
   };
+}
+
+/** 柱间间距基准高度：容器高度为 320px 时柱间距为 30px（随容器高度等比缩放） */
+const GAP_BASE_HEIGHT = 320;
+/** 柱间间距钳制范围：保证最小间距避免柱子粘连，也避免极端容器下间距过大 */
+const GAP_MIN = 20;
+const GAP_MAX = 60;
+
+/** 依据容器高度计算柱间间距（px），随容器高度等比缩放并钳制范围 */
+function getBarCategoryGap(el: HTMLElement): number {
+  const height = el.clientHeight || GAP_BASE_HEIGHT;
+  return Math.min(GAP_MAX, Math.max(GAP_MIN, (height / GAP_BASE_HEIGHT) * 30));
 }
 
 /** 图表指标项（对应源组件 plateMetricList 中的单条数据） */
@@ -94,12 +108,13 @@ function readBarColors(el: HTMLElement): BarColors {
 /** 基础配置（对应源组件 barOption） */
 function buildBaseOption(colors: BarColors): echarts.EChartsOption {
   return {
+    // grid 上下对称留白，list（yAxis 分类）相对 plot 区上下居中
     grid: {
       show: false,
-      top: 10,
+      top: '6%',
       left: '25%',
       right: '24%',
-      bottom: 0,
+      bottom: '6%',
     },
     tooltip: {
       show: true,
@@ -181,7 +196,9 @@ let chartInstance: echarts.ECharts | null = null;
 
 /** 初始化图表 */
 function initChart() {
-  if (!chartRef.value) return;
+  if (!chartRef.value) {
+    return;
+  }
   const colors = readBarColors(chartRef.value);
   chartInstance = echarts.init(chartRef.value);
   chartInstance.setOption(buildBaseOption(colors));
@@ -190,7 +207,9 @@ function initChart() {
 
 /** 用 mock 指标数据刷新图表（对应源组件 refreshChart） */
 function refreshChart(colors: BarColors) {
-  if (!chartInstance) return;
+  if (!chartInstance) {
+    return;
+  }
 
   const chartOpts: echarts.EChartsOption = {
     yAxis: [
@@ -216,6 +235,8 @@ function refreshChart(colors: BarColors) {
     series: [
       {
         barMinHeight: 5,
+        // 柱间间距随容器高度等比缩放（chartRef 在 initChart 中已确认存在）
+        barCategoryGap: getBarCategoryGap(chartRef.value!),
         data: mockMetricList.map((item) => ({
           value: item.metricValue,
           year: '2020',
@@ -236,7 +257,15 @@ function refreshChart(colors: BarColors) {
  * 比 window.resize 监听更准确；组件销毁时 disconnect 释放 observer。
  */
 const handleResize = debounce(() => {
-  chartInstance?.resize();
+  const el = chartRef.value;
+  if (!el || !chartInstance) {
+    return;
+  }
+  // 容器高度变化时按比例更新柱间间距（增量更新，不重建整张图）
+  chartInstance.setOption({
+    series: [{ barCategoryGap: getBarCategoryGap(el) }],
+  });
+  chartInstance.resize();
 }, 200);
 
 /** chartRef 尺寸变化观察器 */
@@ -270,10 +299,17 @@ onBeforeUnmount(() => {
   --gb-bar-to: #0ca0fe;
 
   width: 100%;
+  height: 100%;
+  overflow: hidden;
+  // 最小宽高：父容器无确定高度时兜底（如画廊 auto 高度盒子）
+  min-width: 260px;
+  min-height: 240px;
 
+  // 图表容器铺满组件，高度随父容器等比伸缩（min-height 兜底避免塌陷）
   &__chart {
     width: 100%;
-    height: 320px;
+    height: 100%;
+    min-height: 240px;
   }
 }
 </style>

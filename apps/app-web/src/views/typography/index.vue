@@ -1,7 +1,7 @@
 <template>
-  <Gallery category="typography" />
+  <CompGallery category="typography" background="#ffffff" />
 </template>
 
 <script setup lang="ts">
-import Gallery from '@/components/gallery/index.vue';
+import CompGallery from '@/components/comp-gallery/index.vue';
 </script>

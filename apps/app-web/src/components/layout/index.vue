@@ -125,6 +125,7 @@ import { ImageEvents, imageEventBus } from '@/utils/event-bus';
 import {
   HomeOutlined,
   EnvironmentOutlined,
+  LayoutOutlined,
   AlignLeftOutlined,
   MessageOutlined,
   FireOutlined,
@@ -132,6 +133,7 @@ import {
   AppstoreOutlined,
   BgColorsOutlined,
   FontColorsOutlined,
+  HourglassOutlined,
   PictureOutlined,
   EyeOutlined,
   MenuFoldOutlined,
@@ -141,7 +143,10 @@ import AppDrawer from '@/components/drawer/index.vue';
 import ImageGenerator from '@/components/image-generator/index.vue';
 import ImageCreateModal from '@/components/image-generator/components/ImageCreateModal.vue';
 import { startImageMarker } from '@/utils/image-marker';
-import { reapplyImageReplacements, type ImageReplaceItem } from '@/utils/image-apply';
+import {
+  reapplyImageReplacements,
+  type ImageReplaceItem,
+} from '@/utils/image-apply';
 import { getChangeTargets } from '@/store/modules/image';
 import type { ChangeImageGroupPayload } from '@/utils/event-bus';
 
@@ -200,10 +205,7 @@ onMounted(() => {
       ImageEvents.TASK_FAIL,
       (e) => {
         const task = imageStore.tasks.find((t) => t.id === e.taskId);
-        message.error(
-          `生图失败：${task?.name ?? e.taskId}（${e.error}）`,
-          5,
-        );
+        message.error(`生图失败：${task?.name ?? e.taskId}（${e.error}）`, 5);
       },
     ),
     // 页面图片「换图」小标签点击 → 打开全局新建任务弹框
@@ -297,8 +299,8 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { key: '', title: '首页', icon: HomeOutlined },
-  { key: 'component-preview', title: '组件预览', icon: EyeOutlined },
   { key: 'map', title: '地图', icon: EnvironmentOutlined },
+  { key: 'layout', title: '布局', icon: LayoutOutlined },
   { key: 'typography', title: '排版', icon: AlignLeftOutlined },
   { key: 'modal', title: '弹框布局', icon: MessageOutlined },
   { key: 'effect', title: '特效', icon: FireOutlined },
@@ -306,6 +308,8 @@ const menuItems: MenuItem[] = [
   { key: 'widget', title: '小组件', icon: AppstoreOutlined },
   { key: 'background', title: '背景', icon: BgColorsOutlined },
   { key: 'font', title: '字体', icon: FontColorsOutlined },
+  { key: 'loading', title: 'Loader', icon: HourglassOutlined },
+  { key: 'component-preview', title: '组件预览', icon: EyeOutlined },
 ];
 
 const handleMenuClick = ({ key }: any) => {
@@ -517,10 +521,9 @@ $sider-text-muted: rgba(255, 255, 255, 0.65);
 }
 
 .layout-content {
-  padding: 24px 28px 40px;
+  padding: 18px 20px 18px;
   overflow: auto;
   background: var(--bg-color);
-
   @include slim-scrollbar(4px, rgba(46, 124, 246, 0.35));
 }
 </style>

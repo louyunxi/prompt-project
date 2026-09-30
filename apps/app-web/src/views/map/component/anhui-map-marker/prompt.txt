@@ -1,0 +1,5 @@
+安徽区域轮廓光晕走线 + 监测点 Marker 地图组件：
+- 基于 anhui-map 组件，追加参考 ThreeAssetsSupervision 的监测点 Marker 与城市名称标签。
+- 使用 Leaflet + @turf/turf 渲染安徽省级轮廓、子级轮廓、厚度层、走线、外蒙层。
+- 天地图底图采用 Leaflet 原生 tileLayer 实现。
+- 数据来自 public/assets/area-data/340000.json 与 340000_full.json。

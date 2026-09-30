@@ -14,11 +14,11 @@
   颜色变量（CSS 自定义属性，定义于 <style> 的 .line-area 上，echarts 运行时读取同名变量）：
     --la-tooltip-bg       rgba(0, 0, 0, 0.8)                      提示框背景色
     --la-tooltip-text     #9ed2d8                      提示框文字色
-    --la-title-text       #6dc1cb                      空数据标题文字色
-    --la-legend-text      rgba(255,255,255,0.5)        图例文字色
+    --la-title-text       #9dd1d7                      空数据标题文字色
+    --la-legend-text      #9dd1d7                      图例文字色
     --la-grid-border      #072d4a                      网格边框色
-    --la-axis-text        rgba(255,255,255,0.5)        坐标轴文字色
-    --la-axis-secondary   #7b8f9d                      分类轴次级文字色
+    --la-axis-text        #9dd1d7                      坐标轴文字色
+    --la-axis-secondary   #9dd1d7                      分类轴次级文字色
     --la-axis-line        rgba(109,193,203,0.2)        坐标轴线色
     --la-axis-line-dark   #0d394a                      数值轴线色
     --la-split-line       rgba(109,193,203,0.2)        分割线色
@@ -56,12 +56,29 @@ import * as echarts from 'echarts';
 function debounce(fn: (...args: unknown[]) => void, delay = 300) {
   let timeout: ReturnType<typeof setTimeout> | null = null;
   return (...args: unknown[]) => {
-    if (timeout) clearTimeout(timeout);
+    if (timeout) {
+      clearTimeout(timeout);
+    }
     timeout = setTimeout(() => {
       fn(...args);
       timeout = null;
     }, delay);
   };
+}
+
+/** 字号缩放基准宽度：容器宽度为 360px 时字号保持设计原值（1 倍） */
+const FONT_BASE_WIDTH = 360;
+/** 字号缩放系数钳制范围，避免极端容器下文字过大 / 过小 */
+const FONT_SCALE_MIN = 0.75;
+const FONT_SCALE_MAX = 1.5;
+
+/** 依据容器宽度计算字号缩放系数（按容器比例等比缩放） */
+function getFontScale(el: HTMLElement): number {
+  const width = el.clientWidth || FONT_BASE_WIDTH;
+  return Math.min(
+    FONT_SCALE_MAX,
+    Math.max(FONT_SCALE_MIN, width / FONT_BASE_WIDTH),
+  );
 }
 
 /** 指标项（对应源组件 plateMetricList 中的单条数据） */
@@ -165,11 +182,11 @@ function readLineAreaColors(el: HTMLElement): LineAreaColors {
   return {
     tooltipBg: read('--la-tooltip-bg', 'rgba(0, 0, 0, 0.8)'),
     tooltipText: read('--la-tooltip-text', '#9ed2d8'),
-    titleText: read('--la-title-text', '#6dc1cb'),
-    legendText: read('--la-legend-text', 'rgba(255, 255, 255, 0.5)'),
+    titleText: read('--la-title-text', '#9dd1d7'),
+    legendText: read('--la-legend-text', '#9dd1d7'),
     gridBorder: read('--la-grid-border', '#072d4a'),
-    axisText: read('--la-axis-text', 'rgba(255, 255, 255, 0.5)'),
-    axisSecondary: read('--la-axis-secondary', '#7b8f9d'),
+    axisText: read('--la-axis-text', '#9dd1d7'),
+    axisSecondary: read('--la-axis-secondary', '#9dd1d7'),
     axisLine: read('--la-axis-line', 'rgba(109, 193, 203, 0.2)'),
     axisLineDark: read('--la-axis-line-dark', '#0d394a'),
     splitLine: read('--la-split-line', 'rgba(109, 193, 203, 0.2)'),
@@ -188,49 +205,65 @@ function readLineAreaColors(el: HTMLElement): LineAreaColors {
   };
 }
 
-/** 基础配置（对应源组件 lineOption） */
-function buildBaseOption(colors: LineAreaColors): echarts.EChartsOption {
+/**
+ * 基础配置（对应源组件 lineOption）
+ * @param fontScale 字号缩放系数（按容器宽度等比计算），尺寸相关配置统一乘以此系数
+ */
+function buildBaseOption(
+  colors: LineAreaColors,
+  fontScale: number,
+): echarts.EChartsOption {
+  // 图例与网格顶部改用像素定位：图例贴顶，网格顶部 = 图例高 + 固定间距 + Y 轴单位高，
+  // 保证「图例 — Y 轴标题」间距固定，不随容器高度变化而挤压
+  const legendTop = 2;
+  const legendHeight = 16 * fontScale;
+  const yAxisNameHeight = 14 * fontScale;
+  // 图例与 Y 轴单位间距放大，更透气
+  const legendGap = 16 * fontScale;
+  const gridTop = legendTop + legendHeight + yAxisNameHeight + legendGap;
+
   return {
     title: {
       show: false,
       text: '暂无数据',
-      textStyle: { fontSize: 16, color: colors.titleText },
+      textStyle: { fontSize: 16 * fontScale, color: colors.titleText },
       left: 'center',
       top: 'center',
     },
     legend: {
       show: true,
       width: '80%',
-      top: 6,
-      right: 10,
+      // 图例贴顶（像素），与网格的间距在下方 gridTop 里用像素固定
+      top: legendTop,
+      right: '4%',
       textStyle: {
-        fontSize: 12,
-        lineHeight: 12,
-        padding: [0, 0, -5, 0],
+        fontSize: 12 * fontScale,
+        lineHeight: 12 * fontScale,
         color: colors.legendText,
         fontWeight: 800,
         fontFamily: 'Microsoft YaHei',
       },
-      itemStyle: {},
       icon: 'circle',
-      itemHeight: 6,
-      itemWidth: 10,
+      itemHeight: 6 * fontScale,
+      itemWidth: 10 * fontScale,
     },
+    // grid 全部使用百分比，随容器等比缩放
+    // top 留够空间放图例 + Y 轴单位；bottom 留足空间给 X 轴 label
     grid: {
       show: true,
       borderColor: colors.gridBorder,
-      top: 38,
-      right: 30,
-      bottom: '8%',
-      left: 60,
+      top: gridTop,
+      right: '6%',
+      bottom: '12%',
+      left: '16%',
     },
     tooltip: {
       show: true,
       trigger: 'axis',
       backgroundColor: colors.tooltipBg,
       borderWidth: 0,
-      padding: [13, 14, 13, 11],
-      textStyle: { fontSize: 12, color: colors.tooltipText },
+      padding: [13 * fontScale, 14 * fontScale, 13 * fontScale, 11 * fontScale],
+      textStyle: { fontSize: 12 * fontScale, color: colors.tooltipText },
       formatter: (params: any) => {
         let relVal = params[0].name;
         for (let i = 0, l = params.length; i < l; i++) {
@@ -255,6 +288,7 @@ function buildBaseOption(colors: LineAreaColors): echarts.EChartsOption {
         interval: 0,
         inside: false,
         color: colors.axisText,
+        fontSize: 12 * fontScale,
         fontWeight: 800,
         fontFamily: 'Microsoft YaHei',
         align: 'center',
@@ -270,19 +304,35 @@ function buildBaseOption(colors: LineAreaColors): echarts.EChartsOption {
 
 const chartRef = ref<HTMLDivElement>();
 let chartInstance: echarts.ECharts | null = null;
+/** 当前字号缩放系数（随容器宽度变化，resize 时按比例重建） */
+let fontScale = 1;
+
+/** 渲染图表：基础配置 + mock 数据（init 与 resize 重建共用） */
+function renderChart() {
+  if (!chartInstance || !chartRef.value) {
+    return;
+  }
+  const colors = readLineAreaColors(chartRef.value);
+  chartInstance.setOption(buildBaseOption(colors, fontScale), {
+    notMerge: true,
+  });
+  refreshChart(colors, fontScale);
+}
 
 /** 初始化图表 */
 function initChart() {
-  if (!chartRef.value) return;
-  const colors = readLineAreaColors(chartRef.value);
+  if (!chartRef.value) {
+    return;
+  }
   chartInstance = echarts.init(chartRef.value);
-  chartInstance.setOption(buildBaseOption(colors));
-  refreshChart(colors);
+  renderChart();
 }
 
 /** 用 mock 指标分组数据刷新图表（对应源组件 refreshChart） */
-function refreshChart(colors: LineAreaColors) {
-  if (!chartInstance) return;
+function refreshChart(colors: LineAreaColors, fontScale: number) {
+  if (!chartInstance) {
+    return;
+  }
 
   const groupList = mockMetricGroupList.slice(0, 4);
   const groupOneInfo = groupList[0]?.plateMetricList ?? [];
@@ -307,7 +357,7 @@ function refreshChart(colors: LineAreaColors) {
       })),
       itemStyle: { borderColor: c.line },
       symbol: 'circle',
-      symbolSize: 2,
+      symbolSize: 2 * fontScale,
       color: c.line,
       type: 'line',
       smooth: true,
@@ -336,7 +386,8 @@ function refreshChart(colors: LineAreaColors) {
       axisLabel: {
         color: colors.axisSecondary,
         align: 'center',
-        interval: xAxisDate.length > 12 ? 2 : 0,
+        // X 轴 label 显示全（不再间隔隐藏）
+        interval: 0,
       },
     },
     title: {
@@ -347,17 +398,19 @@ function refreshChart(colors: LineAreaColors) {
       show: groupOneInfo.length > 0,
       name: unit ? `单位：${unit}` : '',
       nameTextStyle: {
-        fontSize: 12,
+        fontSize: 12 * fontScale,
         color: colors.axisText,
         fontWeight: 800,
         fontFamily: 'Microsoft YaHei',
-        padding: [3, 0, 0, 4],
+        // Y 轴单位降低（上 padding 减小，让 name 更贴近刻度）
+        padding: [0, 0, 0, 4],
       },
       axisLine: { show: false, lineStyle: { color: colors.axisLineDark } },
       axisTick: { show: false },
       splitLine: { show: true, lineStyle: { color: colors.splitLine } },
       axisLabel: {
         color: colors.legendText,
+        fontSize: 12 * fontScale,
         fontWeight: 800,
         fontFamily: 'Microsoft YaHei',
       },
@@ -376,7 +429,17 @@ function refreshChart(colors: LineAreaColors) {
  * 比 window.resize 监听更准确；组件销毁时 disconnect 释放 observer。
  */
 const handleResize = debounce(() => {
-  chartInstance?.resize();
+  const el = chartRef.value;
+  if (!el || !chartInstance) {
+    return;
+  }
+  // 容器宽度变化超过阈值时，按比例重建 option（字号随容器等比缩放）
+  const nextScale = getFontScale(el);
+  if (Math.abs(nextScale - fontScale) >= 0.05) {
+    fontScale = nextScale;
+    renderChart();
+  }
+  chartInstance.resize();
 }, 200);
 
 /** chartRef 尺寸变化观察器 */
@@ -404,11 +467,11 @@ onBeforeUnmount(() => {
 .line-area {
   --la-tooltip-bg: rgba(0, 0, 0, 0.8);
   --la-tooltip-text: #9ed2d8;
-  --la-title-text: #6dc1cb;
-  --la-legend-text: rgba(255, 255, 255, 0.5);
+  --la-title-text: #9dd1d7;
+  --la-legend-text: #9dd1d7;
   --la-grid-border: #072d4a;
-  --la-axis-text: rgba(255, 255, 255, 0.5);
-  --la-axis-secondary: #7b8f9d;
+  --la-axis-text: #9dd1d7;
+  --la-axis-secondary: #9dd1d7;
   --la-axis-line: rgba(109, 193, 203, 0.2);
   --la-axis-line-dark: #0d394a;
   --la-split-line: rgba(109, 193, 203, 0.2);
@@ -426,10 +489,16 @@ onBeforeUnmount(() => {
   --la-line4-to: rgba(145, 30, 236, 0);
 
   width: 100%;
+  height: 100%;
+  // 最小宽高：父容器无确定高度时兜底（如画廊 auto 高度盒子）
+  min-width: 260px;
+  min-height: 240px;
 
+  // 图表容器铺满组件，高度随父容器等比伸缩（min-height 兜底避免塌陷）
   &__chart {
     width: 100%;
-    height: 320px;
+    height: 100%;
+    min-height: 240px;
   }
 }
 </style>

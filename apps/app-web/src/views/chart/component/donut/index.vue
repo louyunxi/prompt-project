@@ -326,22 +326,25 @@ const handleResize = debounce(() => {
 /** chartRef 尺寸变化观察器 */
 let resizeObserver: ResizeObserver | null = null;
 
+/** 元素组名（tabs）上下 padding 动态基准：容器 320px 时 padding 12px，随高度等比缩放 */
+const TABS_PAD_BASE_HEIGHT = 320;
+/** 范围收紧：小容器里 tab 与 content 间距更小，让内容尽量显示出来 */
+const TABS_PAD_MIN = 4;
+const TABS_PAD_MAX = 20;
+
 /**
- * 按容器剩余高度动态计算 __tabs 的上下 padding：
- * 剩余高度（容器高 - tabs 内容高 - body 高）按比例分配，上下各占一部分，
- * 最小 8px，最大 24px，写入 CSS 变量 --dn-tabs-pad-y 供样式使用。
+ * 按容器高度动态计算 __tabs 的上下 padding（随高度等比缩放，clamp 8~32px），
+ * 让元素组名在较高容器里保留更多留白、视觉上更居中，写入 --dn-tabs-pad-y 供样式使用。
  */
 function updateTabsPadding() {
   const root = rootRef.value;
-  const tabs = root?.querySelector<HTMLElement>('.donut__tabs');
-  const body = root?.querySelector<HTMLElement>('.donut__body');
-  if (!root || !tabs || !body) return;
+  if (!root) return;
 
-  const tabsContentHeight = tabs.scrollHeight - parseFloat(getComputedStyle(tabs).paddingTop || '0') - parseFloat(getComputedStyle(tabs).paddingBottom || '0');
-  const bodyHeight = body.offsetHeight;
-  const remaining = root.clientHeight - tabsContentHeight - bodyHeight - 16; // 16 为 tabs margin-bottom
-
-  const padY = Math.min(24, Math.max(8, remaining * 0.25));
+  const height = root.clientHeight || TABS_PAD_BASE_HEIGHT;
+  const padY = Math.min(
+    TABS_PAD_MAX,
+    Math.max(TABS_PAD_MIN, (height / TABS_PAD_BASE_HEIGHT) * 16),
+  );
   root.style.setProperty('--dn-tabs-pad-y', `${padY}px`);
 }
 
@@ -387,16 +390,16 @@ onBeforeUnmount(() => {
 
   width: 100%;
   height: 100%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 
   &__tabs {
     display: flex;
     justify-content: center;
-    gap: 40px;
+    gap: 5%;
     // 上下留白由 JS 按容器高度计算（--dn-tabs-pad-y），随容器高度伸缩
-    padding: var(--dn-tabs-pad-y, 8px) 0;
-    margin-bottom: 16px;
+    padding: var(--dn-tabs-pad-y, 4px) 0;
   }
 
   &__tab {

@@ -1,4 +1,4 @@
-# 左岸AI提示词库（app-web）子系统说明书
+# 左岸 AI 提示词库（app-web）子系统说明书
 
 > 本文档是 `app-web` 子系统的项目说明书，供 AI Agent（开发助手）在理解、修改、扩展本子系统时使用。请在动手前通读本文件。
 
@@ -8,20 +8,23 @@
 
 **定位**：提示词平台各分类效果展示的 **Web 端示例项目**，按分类（页面布局 / 地图 / 排版 / 弹框布局 / 特效 / 图表 / 小组件 / 背景 / 字体）沉淀可复用的示例组件与视觉规范。
 
-**所属工程**：`anhui-agri-data-plat`（左岸AI提示词库）Monorepo，本子系统位于 `apps/app-web`。
+**所属工程**：`anhui-agri-data-plat`（左岸 AI 提示词库）Monorepo，本子系统位于 `apps/app-web`。
 
 ## 2. 技术栈
 
 | 类别     | 技术                                  | 说明                                          |
 | -------- | ------------------------------------- | --------------------------------------------- |
-| 框架     | Vue 3.5                               | Composition API +`<script setup lang="ts">` |
-| 语言     | TypeScript 5.7                        | `strict`                                    |
-| 构建     | Vite 6                                | 配置见`vite.config.ts`                      |
+| 框架     | Vue 3.5                               | Composition API +`<script setup lang="ts">`   |
+| 语言     | TypeScript 5.7                        | `strict`                                      |
+| 构建     | Vite 6                                | 配置见`vite.config.ts`                        |
 | UI 库    | Ant Design Vue 4                      | 组件自动按需注册                              |
 | 状态管理 | Pinia 3 + pinia-plugin-persistedstate | 主题持久化                                    |
-| 路由     | Vue Router 4                          | `createWebHashHistory`（hash 模式）         |
+| 路由     | Vue Router 4                          | `createWebHashHistory`（hash 模式）           |
 | 样式     | SCSS（sass-embedded）                 | 主题变量 + 全局 reset                         |
-| 图表     | ECharts 5                             | `^5.5.1`（实际安装 5.6.0）                  |
+| 图表     | ECharts 5                             | `^5.5.1`（实际安装 5.6.0）                    |
+| 动画     | motion-v 2.5                          | `^2.5.1`，React 版 motion/react 的 Vue 移植   |
+| SVG 形变 | flubber 0.4                           | `^0.4.2`，路径插值（`interpolate`/`combine`） |
+| 圆角路径 | figma-squircle 1                      | `^1.1.0`，`getSvgPath` 生成超椭圆圆角         |
 | 包管理   | pnpm + workspace                      | Monorepo（Turborepo）                         |
 
 **关键依赖版本见** `package.json`；`vue`、`vite`、`vue-router` 版本由 workspace `catalog` 统一管理（见根目录 `pnpm-workspace.yaml`）。
@@ -31,7 +34,11 @@
 ```
 apps/app-web/
 ├── src/
-│   ├── components/layout/index.vue      # 整体布局（分类导航 + 内容区）
+│   ├── components/
+│   │   ├── layout/index.vue             # 整体布局（分类导航 + 内容区）
+│   │   ├── comp-card/index.vue          # 分类页卡片公共容器（见 §8.13）
+│   │   ├── comp-gallery/index.vue       # 排版分类的画廊页（typography 用）
+│   │   └── component-preview/           # 组件预览弹框（见 §8.14）
 │   ├── router/index.ts                  # 路由配置（9 分类动态生成）
 │   ├── store/
 │   │   ├── index.ts                     # Pinia 实例 + persistedstate 插件
@@ -42,7 +49,7 @@ apps/app-web/
 │   │   ├── theme.scss                   # 明暗主题（CSS 变量）
 │   │   └── global.scss                  # 全局 reset 与基础样式
 │   ├── views/
-│   │   ├── layout|map|typography|modal|effect|chart|widget|background|font/
+│   │   ├── layout|map|typography|modal|effect|chart|widget|background|font|loading/
 │   │   │   ├── index.vue                # 分类展示页
 │   │   │   └── component/               # 该分类下的示例组件（见 §8）
 │   │   ├── home/index.vue               # 首页
@@ -85,14 +92,14 @@ apps/app-web/
 
 ### 7.1 命名规范（来自根目录 `.clauderules`）
 
-| 对象       | 规范                 | 示例                  |
-| ---------- | -------------------- | --------------------- |
-| 组件文件   | PascalCase           | `ChatMessage.vue`   |
+| 对象       | 规范               | 示例                |
+| ---------- | ------------------ | ------------------- |
+| 组件文件   | PascalCase         | `ChatMessage.vue`   |
 | 组合式函数 | `use` + PascalCase | `useAudioStream.ts` |
-| 普通文件   | kebab-case           | `open-url.ts`       |
-| 变量/函数  | camelCase            | `userName`          |
-| 常量       | UPPER_SNAKE_CASE     | `WHITE_LIST`        |
-| CSS 类名   | kebab-case           | `.stat-card`        |
+| 普通文件   | kebab-case         | `open-url.ts`       |
+| 变量/函数  | camelCase          | `userName`          |
+| 常量       | UPPER_SNAKE_CASE   | `WHITE_LIST`        |
+| CSS 类名   | kebab-case         | `.stat-card`        |
 
 ### 7.2 格式规范
 
@@ -115,7 +122,7 @@ apps/app-web/
 
 - **模版功能展示项目**：`app-web` 是模版功能展示项目，每个 `src/views/<category>/component/<name>/` 目录是一个**最小单元**（如 `chart/component/gradient-bar/`）。
 - **自包含**：该组件的全部内容——模板、脚本、样式、内联依赖函数、图片物料——**全部放进该目录内**，**不引用目录外部的资源**。
-- **允许的外部依赖**：仅框架（Vue）与图表库（ECharts）本身；图片物料放入 `<组件目录>/assets/`，不使用 `@/assets` 等外部路径。
+- **允许的外部依赖**：仅框架（Vue）与项目已声明的第三方库（ECharts、motion-v、flubber、figma-squircle、ant-design-vue / @ant-design/icons-vue）；图片物料放入 `<组件目录>/assets/`，不使用 `@/assets` 等外部路径。**目录内允许多个 SFC / 辅助文件**（如 `index.vue` + `TaskItem.vue`），`index.vue` 必须是入口。
 
 ### 8.2 生成流程
 
@@ -173,6 +180,14 @@ apps/app-web/
 - 引用方式分两处：
   - SCSS 样式：直接用 `var(--gb-xxx)`。
   - ECharts（canvas 渲染不支持 CSS 变量）：通过 `getComputedStyle` 运行时读取同名变量（封装为 `readBarColors()`，读取失败回退到默认色）。
+- **暗色主题覆盖**（组件根类必须写进 `:global()` 选择器内）：
+  ```scss
+  :global(html[data-theme='dark'] .gb-root) {
+    --gb-bar: #4a9eff;
+  }
+  ```
+  ⚠️ **禁止**写成 `:global([data-theme='dark']) .gb-root { ... }`——Vue 的 scoped 编译会把尾部类名丢掉，编译结果为 `[data-theme=dark]{...}`，变量落到 `<html>` 上并被组件自身的同名定义覆盖，暗色**静默失效**。
+- 例外：若组件配色本身由 props 驱动且已内置多套主题（如 `color="black|white|blue"`），或色值写死在 SVG 属性 / `feColorMatrix values` 等 CSS 变量无法表达的位置，可不提炼 `--*` 变量，但**必须在头部注释列出全部色值与原因**。
 
 > 这样做的收益：作为公共组件，使用者可仅通过覆盖 CSS 变量完成换肤，无需改动 JS 配置。
 
@@ -209,7 +224,116 @@ apps/app-web/
 4. **按分类放置**：根据项目的 category 将组件放到合适的 `apps\app-web\src\views\**\` 分类目录中：
    - ECharts 图表组件 → 放入 `apps\app-web\src\views\chart\`。
    - 普通排版布局 → 放入 `apps\app-web\src\views\typography\`。
-   - 其余类推（背景→`background`、特效→`effect`、字体→`font`、弹框→`modal`、地图→`map` 等）。
+   - 其余类推（背景 →`background`、特效 →`effect`、字体 →`font`、弹框 →`modal`、地图 →`map` 等）。
+
+### 8.12 rare-ui（React）组件迁移（2026-09）
+
+源仓库 `E:\桌面\rare-ui-main\`（Next.js + Tailwind + `motion/react`）。组件源码在
+`components/ui/<name>.tsx`，效果示例在 `app/components/(docs)/<name>/demo.tsx`。
+
+**已迁入 18 个组件**：
+
+| 分类     | 组件目录（`src/views/<cat>/component/`）                                                                                                                        |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `effect` | `bounce-sidebar` `fluid-orb` `gooey-nav` `grid-reveal` `hook-sidebar` `matrix-orb` `proximity-sidebar` `scroll-progress`                                        |
+| `widget` | `animated-counter` `delete-button` `duration-picker` `emoji-reaction` `folder-component` `notification-bell` `otp-input` `step-player` `task-list` `voice-note` |
+
+`widget/meta.ts` 中 tag 为「交互」（`folder-component` 等 9 个）与「数据展示」
+（`animated-counter`）；`effect/meta.ts` 中 tag 为「导航」「光效」「滚动」。
+
+两个分类页都由 `import.meta.glob` 自动收录组件目录，**新增目录本身无需改页**，
+但要在对应 `meta.ts` 登记（`name` / `tag` / `label`），否则卡片上不显示 chip 标签。
+
+**React → Vue 对照**：
+
+| React                             | Vue 3                                         |
+| --------------------------------- | --------------------------------------------- |
+| `useState` / `useMemo`            | `ref` / `computed`                            |
+| `useEffect` / `useLayoutEffect`   | `onMounted` / `watch(..., { flush: 'post' })` |
+| `useRef`（DOM）                   | `ref<HTMLElement \| null>(null)`              |
+| 回调 props（`onXxx`）             | `defineEmits`                                 |
+| `createContext` / `useContext`    | `provide` / `inject`                          |
+| `className={cn(...)}`             | `class` + `:class`（`cn()` 一律不引入）       |
+| `next/link` `usePathname`         | 普通 `<a>` / `<button>` + 本地 `ref`          |
+| `react-use-measure`               | 内联 `ResizeObserver`                         |
+| `@radix-ui/react-slot`（asChild） | 去掉，固定根元素 + 原生 `<slot />`            |
+| `lucide-react`                    | `@ant-design/icons-vue`                       |
+| `react-apple-emojis`              | 原生 emoji 字形（不新增依赖、不联网）         |
+
+**motion-v 要点**：
+
+- 标签名与 React 版一致（`<motion.div>` `<motion.button>` `<motion.svg>` `<motion.path>` `<motion.li>` …）。
+- `onAnimationComplete` 是 **prop**：`:on-animation-complete="fn"`。
+- `useReducedMotion()` 返回 `Ref<boolean>`，取值须 `.value`。
+- 点击态用 **`whilePress`**（不是 `whileTap`）。
+- `animate` / `transition` 对象原样照搬（spring 参数可保留）。
+- **居中不要用 `transform`**：motion-v 把 `x/y/rotate/rotateX` 写进内联 `transform`，会整体覆盖 SCSS 里的 `transform: translate(-50%, -50%)`。需要居中的 `motion.*` 元素请改用 CSS `translate: -50% -50%`。
+- `defineProps` 的 `withDefaults` **不能引用局部声明的变量**（会被提升，编译报错），默认值必须内联字面量。
+
+**容器适配**：这些组件最终渲染在画廊卡片内（宽约 240px 起、高 `calc(50vh - 180px)`，
+外层 `display:flex` 居中 + `overflow:hidden`）。组件必须在受约束容器内可用——不要依赖
+整屏 `100vh` 或 `position: fixed`；侧边栏类在自身根元素内定位（根 `position: relative`
+
+- 内部绝对定位）；滚动类（`scroll-progress`）把滚动来源改为组件自身的滚动容器。
+
+### 8.13 分类页（`src/views/<category>/index.vue`）布局标准
+
+**参考模板：`src/views/chart/index.vue`**（`widget` / `background` / `effect` 同构）。
+
+- **结构**：`header`（标题 + `共 N 个 / 每页 M 个 / 第 X / Y 页`）→ `grid` → `pager`，类名用 `xxx-page__*` BEM。
+- **尺寸**：页面 `display:flex; flex-direction:column; gap:16px`，`min-height: calc(100vh - 152px)`，
+  **页面自身不加 padding**（间距由内容区 padding + gap 提供）；网格 `height: calc(100vh - 240px)`，
+  `3 列 × 2 行` 等分（`repeat(3, 1fr)` / `repeat(2, minmax(0, 1fr))`），`gap: 16px`。
+- **分页**：**固定每页 6 个**（3×2 正好一屏，因此不要用动态 pageSize），`?page=N` hash 双向同步，
+  切页时 `window.scrollTo({ top: 0 })`。分页条 `justify-content: center; gap: 8px`，**不加 margin**（靠页面 gap）。
+- **卡片**：**统一使用公共容器组件 `@/components/comp-card`（`<CompCard>`）**，禁止各页再手写
+  卡片 / stage / meta / chip / 名称 / 预览按钮的 DOM 与样式。
+  - 组件职责：`stage`（flex 居中 + `overflow: hidden` + `:deep(> *)` 抹平组件自带 min-height）
+    与 `meta`（左侧 chip + 名称，右侧「预览」（Play 图标）+「复制路径」，预览见 §8.14）、
+    卡片圆角 `8px`、投影 `0 2px 8px -2px rgba(120, 120, 120, 0.25)`。
+  - Props：`label`（必填，卡片名称）、`nameTitle`（tooltip，缺省用 label）、`tag`（chip 文案，
+    不传不渲染 chip）、`tagColor`（chip 底色，各页自己的 tag→色值映射）、`srcPath`（复制按钮 tooltip）、
+    `stageLayout`（`center` 默认居中留白 / `stretch` 子项铺满，地图用）。
+  - Emits：`preview`、`copy`（页面各自接 `openPreview` / `copyPath`）。
+  - **尺寸由各页面自己决定**：页面在 `<CompCard>` 上挂自己的卡片类名（class 透传到根元素），
+    在里面写高度 / padding / 底色，并用 CSS 变量微调：
+    `--comp-card-bg`、`--comp-card-padding`、`--comp-card-stage-bg`、`--comp-card-stage-min-height`、
+    `--comp-card-meta-gap`、`--comp-card-meta-padding`、`--comp-card-name-color`、
+    `--comp-card-chip-bg`、`--comp-card-radius`、`--comp-card-shadow`（取值见组件头部注释）。
+- **卡片底色**：舞台背景恒为固定色时可直接硬编码（如 `chart` 的 `#fff` + `#05284b` 画布）；
+  组件自身带明暗主题自适配的（如 `effect`）必须用默认的 `var(--card-bg)`，否则暗色主题下浅色文案落在白底上。
+- **响应式**：`≤1280px` 降为 2 列 × 3 行，`≤760px` 降为 1 列 × 6 行（行数同步调整，
+  避免出现隐式行破坏「一屏填满」）。
+
+### 8.14 组件预览弹框（`src/components/component-preview/`）
+
+卡片右下角的「预览」按钮，把 `/component-preview` 页的多容器预览区搬进弹框，
+在当前页放大查看组件在 8 种常见容器尺寸下的渲染效果，无需跳转到「组件预览」页。
+
+| 文件 | 职责 |
+| --- | --- |
+| `component-preview/index.vue` | 「组件预览」页（分类 / 组件两级选择器 + 预览区） |
+| `component-preview/PreviewStage.vue` | 多容器预览区：8 个固定尺寸容器，每个容器内 flex 上下左右居中 |
+| `component-preview/ComponentPreviewModal.vue` | **公共预览弹框**：宽 `80vw`、内容区高 `80vh`，内部即 `PreviewStage` |
+
+**用法**（分类页 / 画廊卡片逐条持有 `previewName`）：
+
+```html
+<ComponentPreviewModal
+  v-model:open="previewOpen"
+  category="chart"
+  :component-name="previewName"
+  :title="previewTitle"
+/>
+```
+
+- `destroyOnClose` 默认 `true`：预览区会同时挂载 8 份组件实例（echarts 等有重量级副作用），
+  每次打开重新挂载可保证在正确容器尺寸下初始化、关闭即释放。
+- 弹框尺寸覆盖写在组件内，选择器为 `:global(.component-preview-modal ...)`——
+  a-modal 通过 teleport 挂到 body，scoped 样式够不到；三层类名是为了压过 `PreviewStage`
+  自身的 scoped 规则（如 `min-height: 520px`）。
+- 已接入：`chart` / `widget` / `effect` / `background` / `loading` 分类页，
+  以及 `components/comp-gallery/index.vue`（typography）。新增分类页按同样方式接入。
 
 ## 9. 各板块特别注意
 

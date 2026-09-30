@@ -46,7 +46,9 @@ import * as echarts from 'echarts';
 function debounce(fn: (...args: unknown[]) => void, delay = 300) {
   let timeout: ReturnType<typeof setTimeout> | null = null;
   return (...args: unknown[]) => {
-    if (timeout) clearTimeout(timeout);
+    if (timeout) {
+      clearTimeout(timeout);
+    }
     timeout = setTimeout(() => {
       fn(...args);
       timeout = null;
@@ -69,6 +71,21 @@ function truncateTo8Bytes(originalString: string): string {
     }
   }
   return truncatedString;
+}
+
+/** 字号缩放基准宽度：容器宽度为 360px 时字号保持设计原值（1 倍） */
+const FONT_BASE_WIDTH = 360;
+/** 字号缩放系数钳制范围，避免极端容器下文字过大 / 过小 */
+const FONT_SCALE_MIN = 0.75;
+const FONT_SCALE_MAX = 1.5;
+
+/** 依据容器宽度计算字号缩放系数（按容器比例等比缩放） */
+function getFontScale(el: HTMLElement): number {
+  const width = el.clientWidth || FONT_BASE_WIDTH;
+  return Math.min(
+    FONT_SCALE_MAX,
+    Math.max(FONT_SCALE_MIN, width / FONT_BASE_WIDTH),
+  );
 }
 
 /** 指标项（对应源组件 plateMetricList 中的单条数据） */
@@ -167,8 +184,14 @@ function readGroupBarColors(el: HTMLElement): GroupBarColors {
   };
 }
 
-/** 基础配置（对应源组件 barOption） */
-function buildBaseOption(colors: GroupBarColors): echarts.EChartsOption {
+/**
+ * 基础配置（对应源组件 barOption）
+ * @param fontScale 字号缩放系数（按容器宽度等比计算），尺寸相关配置统一乘以此系数
+ */
+function buildBaseOption(
+  colors: GroupBarColors,
+  fontScale: number,
+): echarts.EChartsOption {
   return {
     tooltip: {
       show: true,
@@ -181,8 +204,8 @@ function buildBaseOption(colors: GroupBarColors): echarts.EChartsOption {
       backgroundColor: colors.tooltipBg,
       borderWidth: 0,
       position: 'top',
-      padding: [13, 14, 13, 11],
-      textStyle: { fontSize: 12, color: colors.tooltipText },
+      padding: [13 * fontScale, 14 * fontScale, 13 * fontScale, 11 * fontScale],
+      textStyle: { fontSize: 12 * fontScale, color: colors.tooltipText },
       formatter: (params: any) => {
         let str = `${params[0]?.name}<br/>`;
         params.forEach((ele: any) => {
@@ -197,13 +220,16 @@ function buildBaseOption(colors: GroupBarColors): echarts.EChartsOption {
       show: true,
       type: 'plain',
       icon: 'circle',
-      itemWidth: 6,
+      itemWidth: 6 * fontScale,
       left: 'center',
-      padding: [18, 0, 0, 0],
-      height: 20,
-      textStyle: { color: colors.axisText },
+      // 图例跟容器顶部保持动态高度间距（用百分比，相对容器高度）
+      top: '2%',
+      height: 16 * fontScale,
+      textStyle: { color: colors.axisText, fontSize: 12 * fontScale },
     },
-    grid: { top: '18%', right: 30, left: 60, bottom: '8%' },
+    // grid 全部使用百分比，随容器等比缩放
+    // top 留够空间放图例 + Y 轴单位；bottom 留足空间给 X 轴 label
+    grid: { top: '22%', right: '6%', left: '14%', bottom: '12%' },
     xAxis: {
       type: 'category',
       axisTick: { show: false },
@@ -213,21 +239,23 @@ function buildBaseOption(colors: GroupBarColors): echarts.EChartsOption {
         interval: 0,
         inside: false,
         color: colors.axisText,
-        formatter: (params: string) => params.slice(0, 8),
+        fontSize: 12 * fontScale,
+        // X 轴 label 显示全，不再截断（数据已由 truncateTo8Bytes 控制）
       },
       axisLine: { show: false },
     },
     yAxis: {
       splitNumber: 3,
       nameTextStyle: {
-        fontSize: 12,
+        fontSize: 12 * fontScale,
         color: colors.axisText,
-        padding: [4, 8, 5, 8],
+        // Y 轴单位降低（上 padding 减小，让 name 更贴近刻度）
+        padding: [0, 8, 3, 8],
       },
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: { show: true, lineStyle: { color: colors.splitLine } },
-      axisLabel: { color: colors.axisText },
+      axisLabel: { color: colors.axisText, fontSize: 12 * fontScale },
     },
     series: [],
   };
@@ -235,19 +263,35 @@ function buildBaseOption(colors: GroupBarColors): echarts.EChartsOption {
 
 const chartRef = ref<HTMLDivElement>();
 let chartInstance: echarts.ECharts | null = null;
+/** 当前字号缩放系数（随容器宽度变化，resize 时按比例重建） */
+let fontScale = 1;
+
+/** 渲染图表：基础配置 + mock 数据（init 与 resize 重建共用） */
+function renderChart() {
+  if (!chartInstance || !chartRef.value) {
+    return;
+  }
+  const colors = readGroupBarColors(chartRef.value);
+  chartInstance.setOption(buildBaseOption(colors, fontScale), {
+    notMerge: true,
+  });
+  refreshChart(colors, fontScale);
+}
 
 /** 初始化图表 */
 function initChart() {
-  if (!chartRef.value) return;
-  const colors = readGroupBarColors(chartRef.value);
+  if (!chartRef.value) {
+    return;
+  }
   chartInstance = echarts.init(chartRef.value);
-  chartInstance.setOption(buildBaseOption(colors));
-  refreshChart(colors);
+  renderChart();
 }
 
 /** 用 mock 指标分组数据刷新图表（对应源组件 refreshChart） */
-function refreshChart(colors: GroupBarColors) {
-  if (!chartInstance) return;
+function refreshChart(colors: GroupBarColors, fontScale: number) {
+  if (!chartInstance) {
+    return;
+  }
 
   const groupList = mockMetricGroupList
     .filter((ele) => ele.plateMetricList && ele.plateMetricList.length)
@@ -269,7 +313,7 @@ function refreshChart(colors: GroupBarColors) {
           truncateTo8Bytes(item.metricName),
         ),
         axisLabel: {
-          margin: maxLength > 6 ? 6 : 12,
+          margin: (maxLength > 6 ? 6 : 12) * fontScale,
           rotate: maxLength > 6 ? 45 : 0,
         },
       },
@@ -282,10 +326,14 @@ function refreshChart(colors: GroupBarColors) {
       },
     ],
     grid: {
-      bottom: maxLength > 12 ? 30 : maxLength > 6 ? 22 : '8%',
+      // X 轴 label 底部预留：随字号缩放并提高最小高度，保证不同容器高度下 label 完整展示
+      bottom:
+        maxLength > 6
+          ? Math.max(56, 44 * fontScale)
+          : Math.max(40, 32 * fontScale),
     },
     series: groupList.map((ele, index) => ({
-      barMinHeight: 3,
+      barMinHeight: 3 * fontScale,
       barWidth: '20%',
       type: 'bar',
       barGap: 0.2,
@@ -314,7 +362,7 @@ function refreshChart(colors: GroupBarColors) {
           type: 'slider',
           showDetail: false,
           moveHandleSize: 0,
-          height: 8,
+          height: 8 * fontScale,
           start: 0,
           end: (12 / maxLength) * 100,
           xAxisIndex: [0],
@@ -336,7 +384,17 @@ function refreshChart(colors: GroupBarColors) {
  * 比 window.resize 监听更准确；组件销毁时 disconnect 释放 observer。
  */
 const handleResize = debounce(() => {
-  chartInstance?.resize();
+  const el = chartRef.value;
+  if (!el || !chartInstance) {
+    return;
+  }
+  // 容器宽度变化超过阈值时，按比例重建 option（字号随容器等比缩放）
+  const nextScale = getFontScale(el);
+  if (Math.abs(nextScale - fontScale) >= 0.05) {
+    fontScale = nextScale;
+    renderChart();
+  }
+  chartInstance.resize();
 }, 200);
 
 /** chartRef 尺寸变化观察器 */
@@ -376,10 +434,17 @@ onBeforeUnmount(() => {
   --grp-bar4-to: #b57aff;
 
   width: 100%;
+  height: 100%;
+  overflow: hidden;
+  // 最小宽高：父容器无确定高度时兜底（如画廊 auto 高度盒子）
+  min-width: 260px;
+  min-height: 240px;
 
+  // 图表容器铺满组件，高度随父容器等比伸缩（min-height 兜底避免塌陷）
   &__chart {
     width: 100%;
-    height: 320px;
+    height: 100%;
+    min-height: 240px;
   }
 }
 </style>

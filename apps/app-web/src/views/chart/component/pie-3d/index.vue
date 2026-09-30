@@ -163,6 +163,7 @@ function readPieColors(el: HTMLElement): PieColors {
 function optionDataExpand(
   optionData: PieDataItem[],
   colors: PieColors,
+  fontScale: number,
 ): PieDataItem[] {
   return optionData.map((data, index) => ({
     itemStyle: {
@@ -175,20 +176,20 @@ function optionDataExpand(
       rich: {
         b: {
           color: colors.labelName,
-          fontSize: 14,
-          lineHeight: 25,
+          fontSize: 14 * fontScale,
+          lineHeight: 25 * fontScale,
           align: 'left',
         },
         c: {
           color: colors.labelValue,
-          fontSize: 16,
-          lineHeight: 25,
+          fontSize: 16 * fontScale,
+          lineHeight: 25 * fontScale,
           align: 'left',
         },
         d: {
           color: colors.labelValue,
-          fontSize: 12,
-          lineHeight: 25,
+          fontSize: 12 * fontScale,
+          lineHeight: 25 * fontScale,
           align: 'left',
         },
       },
@@ -217,6 +218,7 @@ function getPie3D(
   pieHeight: number,
   opacity = 1,
   colors: PieColors,
+  fontScale: number,
 ): Record<string, any> {
   const series: SurfaceSeries[] = [];
   let sumValue = 0;
@@ -306,9 +308,9 @@ function getPie3D(
     tooltip: {
       backgroundColor: colors.tooltipBg,
       borderWidth: 0,
-      padding: [13, 14, 13, 11],
+      padding: [13 * fontScale, 14 * fontScale, 13 * fontScale, 11 * fontScale],
       textStyle: {
-        fontSize: 12,
+        fontSize: 12 * fontScale,
         color: colors.tooltipText,
       },
       // 内联源 BKMB104 对 tooltip.formatter 的覆盖逻辑
@@ -332,9 +334,9 @@ function getPie3D(
       left: 'center',
       // 俯视投影（alpha 28）会让主体视觉重心偏下，top 上移使其与容器中心、
       // labelSeries 标签层圆心（50%,50%）对齐
-      top: '5%',
-      width: '80%',
-      height: '70%',
+      top: '10%',
+      width: '100%',
+      height: '85%',
       boxHeight, // 圆环的高度
       viewControl: {
         alpha, // 角度
@@ -460,19 +462,23 @@ function formatFloat(num: number, n: number): string | false {
 
 const chartRef = ref<HTMLDivElement>();
 let chartInstance: echarts.ECharts | null = null;
+/** 当前字号缩放系数（随容器宽度变化，resize 时按比例重建） */
+let fontScale = 1;
 
 /**
- * 初始化图表（对应源子组件 Pie3D01.renderEchart）
+ * 渲染图表（init 与 resize 重建共用）
  * grid3D viewControl：alpha 28 / distance 240 / 关闭旋转缩放平移
  */
-function initChart() {
-  if (!chartRef.value) return;
+function renderChart() {
+  if (!chartInstance || !chartRef.value) {
+    return;
+  }
   const colors = readPieColors(chartRef.value);
-  chartInstance = echarts.init(chartRef.value);
-
-  const expandData = optionDataExpand(mockPieData, colors);
-  const option = getPie3D(expandData, 0, 300, 28, 36, 1, colors);
-
+  const expandData = optionDataExpand(mockPieData, colors, fontScale);
+  const option = getPie3D(expandData, 0, 300, 28, 36, 1, colors, fontScale);
+  const ww = Math.min(chartRef.value.clientWidth, chartRef.value.clientHeight);
+  option.grid3D.height = ww * 0.9;
+  option.grid3D.bottom = ww * 0.1;
   // 额外 push 透明 labelSeries（2D 标签层，承接名称/数值标签渲染，不遮挡 3D 扇形）
   option.series.push({
     name: 'labelSeries',
@@ -480,8 +486,8 @@ function initChart() {
     type: 'pie',
     label: {
       opacity: 1,
-      fontSize: 13,
-      lineHeight: 20,
+      fontSize: 13 * fontScale,
+      lineHeight: 20 * fontScale,
     },
     startAngle: -20, // 起始角度，支持范围 [0, 360]
     clockwise: false, // 饼图的扇区是否是顺时针排布（对齐 3D 样式）
@@ -493,7 +499,18 @@ function initChart() {
     },
   });
 
-  chartInstance.setOption(option as unknown as echarts.EChartsOption);
+  chartInstance.setOption(option as unknown as echarts.EChartsOption, {
+    notMerge: true,
+  });
+}
+
+/** 初始化图表（对应源子组件 Pie3D01.renderEchart） */
+function initChart() {
+  if (!chartRef.value) {
+    return;
+  }
+  chartInstance = echarts.init(chartRef.value);
+  renderChart();
   bindEchartEvents();
 }
 
@@ -654,12 +671,29 @@ function bindEchartEvents() {
 function debounce(fn: (...args: unknown[]) => void, delay = 300) {
   let timeout: ReturnType<typeof setTimeout> | null = null;
   return (...args: unknown[]) => {
-    if (timeout) clearTimeout(timeout);
+    if (timeout) {
+      clearTimeout(timeout);
+    }
     timeout = setTimeout(() => {
       fn(...args);
       timeout = null;
     }, delay);
   };
+}
+
+/** 字号缩放基准宽度：容器宽度为 360px 时字号保持设计原值（1 倍） */
+const FONT_BASE_WIDTH = 360;
+/** 字号缩放系数钳制范围，避免极端容器下文字过大 / 过小 */
+const FONT_SCALE_MIN = 0.75;
+const FONT_SCALE_MAX = 1.5;
+
+/** 依据容器宽度计算字号缩放系数（按容器比例等比缩放） */
+function getFontScale(el: HTMLElement): number {
+  const width = el.clientWidth || FONT_BASE_WIDTH;
+  return Math.min(
+    FONT_SCALE_MAX,
+    Math.max(FONT_SCALE_MIN, width / FONT_BASE_WIDTH),
+  );
 }
 
 /**
@@ -671,7 +705,17 @@ function debounce(fn: (...args: unknown[]) => void, delay = 300) {
  * 比 window.resize 监听更准确；组件销毁时 disconnect 释放 observer。
  */
 const handleResize = debounce(() => {
-  chartInstance?.resize();
+  const el = chartRef.value;
+  if (!el || !chartInstance) {
+    return;
+  }
+  // 容器宽度变化超过阈值时，按比例重建 option（字号随容器等比缩放）
+  const nextScale = getFontScale(el);
+  if (Math.abs(nextScale - fontScale) >= 0.05) {
+    fontScale = nextScale;
+    renderChart();
+  }
+  chartInstance.resize();
 }, 200);
 
 /** chartRef 尺寸变化观察器 */
@@ -696,6 +740,10 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
+* {
+  padding: 0;
+  margin: 0;
+}
 .pie-3d {
   --p3d-title-color: #9dd1d7;
   --p3d-value-color: #efde46;
@@ -706,29 +754,34 @@ onBeforeUnmount(() => {
   --p3d-label-value: #00f6ff;
 
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: 100%;
+  height: 100%;
   overflow: hidden;
 
   /* 背景图装饰子元素（铺满图表区域，不拦截鼠标事件） */
   &__bg {
     position: absolute;
     top: 0;
-    left: 0;
+    left: 50%;
     width: 100%;
     height: 100%;
     background: url('./assets/chart-pie-3d-base-bg.png') no-repeat;
     pointer-events: none;
-    background-size: 80% auto;
-    background-position: center 60%;
+    background-size: 75% auto;
+    background-position: center 76%;
+    transform: translate3d(-50%, 0, 0);
   }
 
   /* 顶部描述区：标题 + 数值 + 单位 */
   &__des {
     position: relative;
+    flex-shrink: 0;
     display: flex;
     justify-content: center;
     align-items: flex-end;
-    margin-top: 20px;
+    flex: 0.3;
 
     &-label {
       margin-right: 20px;
@@ -748,11 +801,13 @@ onBeforeUnmount(() => {
     }
   }
 
-  /* 图表容器（3D 渲染区域） */
+  /* 图表容器（3D 渲染区域，flex 剩余空间铺满，随父容器等比伸缩） */
   &__chart {
     position: relative;
+    flex: 1;
+    // 容器宽度限制为父容器 50%，3D 饼图视觉底部 ≈ 容器 50%
+    align-self: center;
     width: 100%;
-    height: 320px;
   }
 }
 
@@ -775,10 +830,6 @@ onBeforeUnmount(() => {
         font-size: 12px;
       }
     }
-
-    &__chart {
-      height: 280px;
-    }
   }
 }
 
@@ -800,10 +851,6 @@ onBeforeUnmount(() => {
       &-unit {
         font-size: 15px;
       }
-    }
-
-    &__chart {
-      height: 360px;
     }
   }
 }

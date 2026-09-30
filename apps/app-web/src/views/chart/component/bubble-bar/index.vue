@@ -51,12 +51,29 @@ import * as echarts from 'echarts';
 function debounce(fn: (...args: unknown[]) => void, delay = 300) {
   let timeout: ReturnType<typeof setTimeout> | null = null;
   return (...args: unknown[]) => {
-    if (timeout) clearTimeout(timeout);
+    if (timeout) {
+      clearTimeout(timeout);
+    }
     timeout = setTimeout(() => {
       fn(...args);
       timeout = null;
     }, delay);
   };
+}
+
+/** 字号缩放基准宽度：容器宽度为 360px 时字号保持设计原值（1 倍） */
+const FONT_BASE_WIDTH = 360;
+/** 字号缩放系数钳制范围，避免极端容器下文字过大 / 过小 */
+const FONT_SCALE_MIN = 0.75;
+const FONT_SCALE_MAX = 1.5;
+
+/** 依据容器宽度计算字号缩放系数（按容器比例等比缩放） */
+function getFontScale(el: HTMLElement): number {
+  const width = el.clientWidth || FONT_BASE_WIDTH;
+  return Math.min(
+    FONT_SCALE_MAX,
+    Math.max(FONT_SCALE_MIN, width / FONT_BASE_WIDTH),
+  );
 }
 
 /** 图表数据项（对应源组件 plateMetricList 中的单条数据） */
@@ -126,8 +143,14 @@ function readBarColors(el: HTMLElement): BubbleColors {
   };
 }
 
-/** 基础配置（stackBarOption 与源组件 barConsumerGoodsData 深合并结果，适配 echarts 5） */
-function buildBaseOption(colors: BubbleColors): echarts.EChartsOption {
+/**
+ * 基础配置（stackBarOption 与源组件 barConsumerGoodsData 深合并结果，适配 echarts 5）
+ * @param fontScale 字号缩放系数（按容器宽度等比计算），尺寸相关配置统一乘以此系数
+ */
+function buildBaseOption(
+  colors: BubbleColors,
+  fontScale: number,
+): echarts.EChartsOption {
   return {
     tooltip: {
       show: true,
@@ -138,9 +161,9 @@ function buildBaseOption(colors: BubbleColors): echarts.EChartsOption {
       backgroundColor: colors.tooltipBg,
       borderWidth: 0,
       position: 'top',
-      padding: [13, 14, 13, 11],
+      padding: [13 * fontScale, 14 * fontScale, 13 * fontScale, 11 * fontScale],
       textStyle: {
-        fontSize: 12,
+        fontSize: 12 * fontScale,
         color: colors.tooltipText,
       },
       formatter: (params: any) => {
@@ -151,16 +174,19 @@ function buildBaseOption(colors: BubbleColors): echarts.EChartsOption {
     },
     legend: {
       icon: 'circle',
-      itemWidth: 6,
-      right: 10,
+      itemWidth: 6 * fontScale,
+      right: '4%',
       textStyle: {
+        fontSize: 12 * fontScale,
         color: colors.legendText,
       },
     },
     grid: {
       top: '18%',
       left: '12%',
-      bottom: '8%',
+      right: '6%',
+      // bottom 留足空间给 X 轴 label，避免被容器底部裁掉
+      bottom: '15%',
     },
     xAxis: {
       type: 'category',
@@ -168,10 +194,10 @@ function buildBaseOption(colors: BubbleColors): echarts.EChartsOption {
         show: false,
       },
       axisLabel: {
-        margin: 12,
+        margin: 16 * fontScale,
         rotate: 0,
         color: colors.axisText,
-        fontSize: 12,
+        fontSize: 12 * fontScale,
         align: 'center',
       },
       axisLine: {
@@ -184,7 +210,7 @@ function buildBaseOption(colors: BubbleColors): echarts.EChartsOption {
       name: '单位：单位',
       nameTextStyle: {
         color: colors.yAxisName,
-        fontSize: 12,
+        fontSize: 12 * fontScale,
         padding: [4, 8, 5, 8],
       },
       axisLine: {
@@ -200,19 +226,21 @@ function buildBaseOption(colors: BubbleColors): echarts.EChartsOption {
         },
       },
       axisLabel: {
-        margin: 12,
+        margin: 12 * fontScale,
         color: colors.axisText,
-        fontSize: 12,
+        fontSize: 12 * fontScale,
       },
     },
     dataZoom: [{ show: false }],
     series: [
       {
         type: 'pictorialBar',
-        barCategoryGap: '5%',
+        // 柱间间距随容器宽度缩放：窄容器里柱与柱更紧凑，避免横向溢出
+        barCategoryGap: `${Math.max(3, 6 * fontScale)}%`,
         symbol: 'path://M0,15 L10,15 C6,15 6,5 5,0 C4.5,5 4.5,15 0,15 z',
-        barWidth: 25,
-        barMinHeight: 10,
+        // 柱宽随容器宽度缩放（窄容器柱更窄，保证所有柱子在容器内可见）
+        barWidth: `${Math.max(18, 30 * fontScale)}%`,
+        barMinHeight: 10 * fontScale,
         itemStyle: {
           // 每个柱子的颜色即为 barColors 数组里的每一项（按 dataIndex 着色）
           // color 支持回调，但 EChartsOption 的 itemStyle.color 类型为 ZRColor（非函数），故整体断言为 any
@@ -223,7 +251,7 @@ function buildBaseOption(colors: BubbleColors): echarts.EChartsOption {
           show: true,
           position: 'top',
           color: colors.labelText,
-          fontSize: 16,
+          fontSize: 16 * fontScale,
         },
         data: [],
       },
@@ -233,19 +261,35 @@ function buildBaseOption(colors: BubbleColors): echarts.EChartsOption {
 
 const chartRef = ref<HTMLDivElement>();
 let chartInstance: echarts.ECharts | null = null;
+/** 当前字号缩放系数（随容器宽度变化，resize 时按比例重建） */
+let fontScale = 1;
+
+/** 渲染图表：基础配置 + mock 数据（init 与 resize 重建共用） */
+function renderChart() {
+  if (!chartInstance || !chartRef.value) {
+    return;
+  }
+  const colors = readBarColors(chartRef.value);
+  chartInstance.setOption(buildBaseOption(colors, fontScale), {
+    notMerge: true,
+  });
+  refreshChart();
+}
 
 /** 初始化图表（对应源组件 _initEcharts：init + setOption 基础配置） */
 function initChart() {
-  if (!chartRef.value) return;
-  const colors = readBarColors(chartRef.value);
+  if (!chartRef.value) {
+    return;
+  }
   chartInstance = echarts.init(chartRef.value);
-  chartInstance.setOption(buildBaseOption(colors));
-  refreshChart();
+  renderChart();
 }
 
 /** 用 mock 数据刷新图表（对应源组件 drawBar 的 setOption 数据部分） */
 function refreshChart() {
-  if (!chartInstance) return;
+  if (!chartInstance) {
+    return;
+  }
 
   const chartOpts: echarts.EChartsOption = {
     xAxis: {
@@ -272,7 +316,17 @@ function refreshChart() {
  * 比 window.resize 监听更准确；组件销毁时 disconnect 释放 observer。
  */
 const handleResize = debounce(() => {
-  chartInstance?.resize();
+  const el = chartRef.value;
+  if (!el || !chartInstance) {
+    return;
+  }
+  // 容器宽度变化超过阈值时，按比例重建 option（字号随容器等比缩放）
+  const nextScale = getFontScale(el);
+  if (Math.abs(nextScale - fontScale) >= 0.05) {
+    fontScale = nextScale;
+    renderChart();
+  }
+  chartInstance.resize();
 }, 200);
 
 /** chartRef 尺寸变化观察器 */
@@ -313,24 +367,17 @@ onBeforeUnmount(() => {
   --bb-bar-6: #e3964a;
 
   width: 100%;
+  height: 100%;
+  overflow: hidden;
+  // 最小宽高：父容器无确定高度时兜底（如画廊 auto 高度盒子）
+  min-width: 260px;
+  min-height: 240px;
 
+  // 图表容器铺满组件，高度随父容器等比伸缩（min-height 兜底避免塌陷）
   &__chart {
     width: 100%;
-    height: 320px;
-  }
-
-  // ≤1280px：小屏笔记本，图表容器略收矮
-  @media (max-width: 1280px) {
-    &__chart {
-      height: 300px;
-    }
-  }
-
-  // ≥1920px：大屏显示器，图表容器略加高
-  @media (min-width: 1920px) {
-    &__chart {
-      height: 340px;
-    }
+    height: 100%;
+    min-height: 240px;
   }
 }
 </style>

@@ -1,8 +1,10 @@
 <!--
-  组件名称：GradientBackground（纯展示组件 + AI 生图背景订阅）
+  组件名称：GradientBackground（渐变背景 · 四种 CSS 技法切换 + 复制 CSS3 代码 + AI 生图背景订阅）
 
   依赖插件 / 版本：
     - vue ^3.5.13（catalog 统一版本）
+    - ant-design-vue ^4（message 提示）
+    - @ant-design/icons-vue（CopyOutlined）
     - sass（组件内 scoped 样式）
     - pinia + pinia-plugin-persistedstate（订阅 store/modules/image）
 
@@ -11,46 +13,47 @@
     - pnpm >=9.12.0（本仓库 packageManager 固定 pnpm@10.12.4）
 
   颜色变量（CSS 自定义属性，定义于 <style> 的 .gradient-background 上）：
-    --gb-base-from        #0b1d3a                底色渐变起始（深蓝）
-    --gb-base-to          #142a52                底色渐变结束（深蓝）
-    --gb-accent-1        #00d4ff                强调色 1（青色光斑）
-    --gb-accent-2        #4f7eff                强调色 2（蓝色光斑）
-    --gb-accent-3        #b06bff                强调色 3（紫色光斑）
-    --gb-title-text      #ffffff            主标题文字色
-    --gb-sub-text        rgba(255,255,255,0.7)   副标题文字色
-    --gb-tag-bg          rgba(255,255,255,0.08) 标签胶囊背景色
-    --gb-tag-border      rgba(255,255,255,0.18) 标签胶囊描边色
-    --gb-tag-text        #b5e8ff                标签胶囊文字色
+    --gb-base-from             #0b1d3a               底色渐变起始（随取色器实时覆盖）
+    --gb-base-to               #142a52               底色渐变结束（随取色器实时覆盖）
+    --gb-accent-1              #00d4ff               光斑一色（浮动光斑技法用，随取色器实时覆盖）
+    --gb-accent-2              #4f7eff               光斑二色（浮动光斑技法用，随取色器实时覆盖）
+    --gb-title-text            #ffffff               主标题文字色
+    --gb-sub-text              rgba(255,255,255,.7)  副标题文字色
+    --gb-tag-bg                rgba(255,255,255,.08) 标签胶囊背景色
+    --gb-tag-border            rgba(255,255,255,.18) 标签胶囊描边色
+    --gb-tag-text              #b5e8ff               标签胶囊文字色
+
+  控制面板颜色变量（四种技法的底色都是深色，面板统一白色半透明即可保证可读性）：
+    --gb-control-bg            rgba(255,255,255,.08) tab / 色位胶囊底色
+    --gb-control-bg-hover      rgba(255,255,255,.16) hover 底色
+    --gb-control-border        rgba(255,255,255,.18) tab / 色位胶囊描边
+    --gb-control-active-bg     rgba(255,255,255,.24) 选中 tab、复制按钮底色
+    --gb-control-active-border rgba(255,255,255,.45) 选中 tab、复制按钮描边
+    --gb-control-text          rgba(255,255,255,.78) tab / 色位说明文字色
 
   设计说明：
-    1. 控制面板已从本组件移除，统一放到「生图管理」抽屉（@/components/image-generator）。
-       本组件仅负责「展示」，即根据 store 中的 activeBackgroundTask 自动渲染默认渐变
-       或对应任务的生成图。
-    2. 当 activeBackgroundTask 状态为 success 时，渲染 result.imageUrl（优先 blobUrl
-       否则退到 originalUrl），并把任务参数拼接成信息标签；否则回落到默认渐变。
-    3. 切换 / 重置不需要本组件主动操作，由「生图管理」抽屉统一发指令。
-    4. 图片加载失败给出友好兜底提示，由用户回抽屉重新生图。
+    1. 面板顶部 tab 切换四种 CSS 技法：线性渐变 / 径向渐变 / 对角叠加 / 浮动光斑；
+       下方是四个色位（底色起、底色止、光斑一、光斑二）的取色器，再下方是「复制
+       CSS3 样式」按钮，点击把**当前技法 + 当前色值**生成的完整 CSS 写进剪贴板。
+       —— 所以「看到的背景」与「复制的代码」始终一一对应，粘到别处即可还原。
+    2. 叠加层全部用根元素的 ::before / ::after 绘制（对角高光、两枚模糊光斑），
+       复制的代码不需要额外的 HTML 结构，只贴 CSS 就能跑。
+    3. 色值与当前 tab 持久化在 localStorage（key: app-web-gradient-background），
+       刷新不丢；读取时逐字段校验，脏数据 / 旧版本数据回落默认值。
+    4. AI 生图背景（store/modules/image 的 activeBackgroundTask）优先级最高：
+       存在成功任务时渲染生成图并隐藏整个控制面板，否则回落到默认渐变。
+    5. 图片加载失败给出友好兜底提示，由用户回「生图管理」抽屉重新生图。
 -->
 <template>
-  <div class="gradient-background">
-    <!-- 默认渐变背景：当没有激活的 AI 背景任务时显示 -->
-    <template v-if="!bgImageUrl">
-      <div class="gradient-background__layer gradient-background__layer--base"></div>
-      <div class="gradient-background__layer gradient-background__layer--diag"></div>
-      <div
-        class="gradient-background__layer gradient-background__layer--blob gradient-background__layer--blob-1"
-      ></div>
-      <div
-        class="gradient-background__layer gradient-background__layer--blob gradient-background__layer--blob-2"
-      ></div>
-      <div
-        class="gradient-background__layer gradient-background__layer--blob gradient-background__layer--blob-3"
-      ></div>
-      <div class="gradient-background__grid"></div>
-    </template>
+  <div
+    class="gradient-background"
+    :class="`gradient-background--${currentStyle.key}`"
+    :style="themeStyle"
+  >
+    <!-- 叠加层（对角高光 / 浮动光斑）由根元素的 ::before / ::after 绘制，见样式区 -->
 
     <!-- AI 生图作为背景：来自 store 中的 activeBackgroundTask -->
-    <template v-else>
+    <template v-if="bgImageUrl">
       <img
         class="gradient-background__ai-image"
         :src="bgImageUrl"
@@ -72,10 +75,10 @@
         {{ subText }}
       </div>
 
-      <!-- 默认渐变时显示原有标签胶囊 -->
+      <!-- 默认渐变时显示当前技法的特征标签 -->
       <div v-if="!bgImageUrl" class="gradient-background__tags">
         <span
-          v-for="tag in mockTags"
+          v-for="tag in currentStyle.tags"
           :key="tag"
           class="gradient-background__tag"
         >
@@ -94,16 +97,375 @@
         <span class="gradient-background__tag">{{ aiTransparentText }}</span>
       </div>
     </div>
+
+    <!-- 控制面板：仅默认渐变模式可用（AI 生图时配色不生效，直接隐藏） -->
+    <div v-if="!bgImageUrl" class="gradient-background__panel">
+      <!-- 四种 CSS 技法 -->
+      <div class="gradient-background__tabs" role="tablist">
+        <button
+          v-for="(style, index) in STYLE_LIST"
+          :key="style.key"
+          class="gradient-background__tab"
+          :class="{ 'is-active': index === activeStyleIndex }"
+          type="button"
+          role="tab"
+          :aria-selected="index === activeStyleIndex"
+          @click="selectStyle(index)"
+        >
+          {{ style.name }}
+        </button>
+      </div>
+
+      <!-- 四个可调色位 -->
+      <div class="gradient-background__colors">
+        <label
+          v-for="slot in COLOR_SLOTS"
+          :key="slot.key"
+          class="gradient-background__color"
+          :title="`调节${slot.label}`"
+        >
+          <input
+            class="gradient-background__color-input"
+            type="color"
+            :value="colors[slot.key]"
+            @input="updateColor(slot.key, $event)"
+          />
+          <span class="gradient-background__color-label">{{ slot.label }}</span>
+        </label>
+      </div>
+
+      <!-- 复制当前样式的完整 CSS3 代码 -->
+      <button
+        class="gradient-background__copy"
+        type="button"
+        title="复制当前样式的完整 CSS3 代码"
+        @click="copyCss"
+      >
+        <CopyOutlined />
+        <span>复制 CSS3 样式</span>
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
+import { message } from 'ant-design-vue';
+import { CopyOutlined } from '@ant-design/icons-vue';
 import { useImageStore } from '@/store/modules/image';
 import { IMAGE_MODEL_OPTIONS } from '@/utils/ai-image';
 
-/** 顶部标签胶囊（默认渐变模式） */
-const mockTags: string[] = ['线性渐变', '径向渐变', '对角叠加', '浮动光斑'];
+/* ============================================================
+ * 四种 CSS 技法 + 四个可调色位
+ * ========================================================== */
+
+/** 四种 CSS 技法标识 */
+type StyleKey = 'linear' | 'radial' | 'diagonal' | 'blob';
+
+interface GradientStyle {
+  key: StyleKey;
+  /** tab 文案 */
+  name: string;
+  /** 内容区的特征标签胶囊 */
+  tags: string[];
+}
+
+/** 数组顺序即 tab 顺序 */
+const STYLE_LIST: GradientStyle[] = [
+  { key: 'linear', name: '线性渐变', tags: ['180° 双色', '单层 linear'] },
+  { key: 'radial', name: '径向渐变', tags: ['中心径向', '单层 radial'] },
+  { key: 'diagonal', name: '对角叠加', tags: ['135° 高光', '多层叠加'] },
+  {
+    key: 'blob',
+    name: '浮动光斑',
+    tags: ['径向光斑', '模糊 60px', '浮动动画'],
+  },
+];
+
+/** 可调节的色位 */
+type ColorKey = 'baseFrom' | 'baseTo' | 'accent1' | 'accent2';
+
+interface ColorSlot {
+  key: ColorKey;
+  label: string;
+}
+
+const COLOR_SLOTS: ColorSlot[] = [
+  { key: 'baseFrom', label: '底色起' },
+  { key: 'baseTo', label: '底色止' },
+  { key: 'accent1', label: '光斑一' },
+  { key: 'accent2', label: '光斑二' },
+];
+
+/** 四个色位的默认值（深蓝），与样式区的兜底变量保持一致 */
+const DEFAULT_COLORS: Record<ColorKey, string> = {
+  baseFrom: '#0b1d3a',
+  baseTo: '#142a52',
+  accent1: '#00d4ff',
+  accent2: '#4f7eff',
+};
+
+/* ============================================================
+ * 状态：色值 + 当前技法，落 localStorage
+ * ========================================================== */
+
+/** localStorage key：{ style: number; colors: Record<ColorKey, string> } */
+const STORAGE_KEY = 'app-web-gradient-background';
+
+/**
+ * 读取本地记忆：逐字段校验，非法 / 缺失项回落默认值，
+ * 老版本（按主题名分组）或手工改坏的数据都不会让取色器变成空值。
+ */
+function readStoredState(): {
+  styleIndex: number;
+  colors: Record<ColorKey, string>;
+} {
+  const colors: Record<ColorKey, string> = { ...DEFAULT_COLORS };
+  let styleIndex = 0;
+
+  if (typeof window === 'undefined') {
+    return { styleIndex, colors };
+  }
+
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return { styleIndex, colors };
+    }
+    const parsed = JSON.parse(raw) as {
+      style?: unknown;
+      colors?: Partial<Record<ColorKey, unknown>>;
+    };
+
+    const index = Number(parsed.style);
+    if (Number.isInteger(index) && index >= 0 && index < STYLE_LIST.length) {
+      styleIndex = index;
+    }
+
+    COLOR_SLOTS.forEach(({ key }) => {
+      const value = parsed.colors?.[key];
+      if (typeof value === 'string' && value) {
+        colors[key] = value;
+      }
+    });
+  } catch {
+    return { styleIndex: 0, colors: { ...DEFAULT_COLORS } };
+  }
+
+  return { styleIndex, colors };
+}
+
+const initialState = readStoredState();
+
+/** 四个色位（响应式，直接改字段即实时刷新） */
+const colors = reactive<Record<ColorKey, string>>(initialState.colors);
+
+/** 当前选中的技法下标 */
+const activeStyleIndex = ref(initialState.styleIndex);
+
+/** 当前技法 */
+const currentStyle = computed(() => STYLE_LIST[activeStyleIndex.value]);
+
+/** 把四个色位写成 CSS 变量挂到根元素上，样式侧只认变量，不认具体色值 */
+const themeStyle = computed(() => ({
+  '--gb-base-from': colors.baseFrom,
+  '--gb-base-to': colors.baseTo,
+  '--gb-accent-1': colors.accent1,
+  '--gb-accent-2': colors.accent2,
+}));
+
+/** 切换技法 */
+function selectStyle(index: number) {
+  activeStyleIndex.value = index;
+  persist();
+}
+
+/** 取色器回调 */
+function updateColor(key: ColorKey, event: Event) {
+  colors[key] = (event.target as HTMLInputElement).value;
+  persist();
+}
+
+/** 落盘：隐私模式 / 配额不足时静默降级为「仅本次会话有效」 */
+function persist() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ style: activeStyleIndex.value, colors }),
+    );
+  } catch {
+    // 静默降级
+  }
+}
+
+/* ============================================================
+ * 生成并复制当前样式的完整 CSS3 代码
+ * ========================================================== */
+
+/** #rrggbb -> rgba(r, g, b, a)：渐变终点保留 alpha 0 的同色相，避免灰边 */
+function hexToRgba(hex: string, alpha: number): string {
+  const raw = hex.replace('#', '').trim();
+  const full =
+    raw.length === 3
+      ? raw
+          .split('')
+          .map((ch) => ch + ch)
+          .join('')
+      : raw;
+  const num = Number.parseInt(full, 16);
+
+  if (full.length !== 6 || Number.isNaN(num)) {
+    return `rgba(255, 255, 255, ${alpha})`;
+  }
+
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** 四种技法共用的盒子声明 */
+const BOX_DECLARATIONS = [
+  '  position: relative;',
+  '  width: 100%;',
+  '  height: 320px;',
+  '  overflow: hidden;',
+  '  border-radius: 8px;',
+].join('\n');
+
+/**
+ * 按「当前技法 + 当前色值」拼出可直接粘贴的完整 CSS。
+ * 与样式区一一对应：看到的背景就是复制出来的这段代码。
+ */
+function buildCss(style: StyleKey, c: Record<ColorKey, string>): string {
+  const linear = `linear-gradient(180deg, ${c.baseFrom} 0%, ${c.baseTo} 100%)`;
+
+  if (style === 'linear') {
+    return `.gradient-background {
+${BOX_DECLARATIONS}
+  background: ${linear};
+}`;
+  }
+
+  if (style === 'radial') {
+    return `.gradient-background {
+${BOX_DECLARATIONS}
+  background: radial-gradient(
+    circle at 50% 45%,
+    ${c.baseFrom} 0%,
+    ${c.baseTo} 72%
+  );
+}`;
+  }
+
+  if (style === 'diagonal') {
+    return `.gradient-background {
+${BOX_DECLARATIONS}
+  background: ${linear};
+}
+
+/* 对角叠加层：135° 白色高光，增强方向感 */
+.gradient-background::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0) 55%
+  );
+}`;
+  }
+
+  return `.gradient-background {
+${BOX_DECLARATIONS}
+  background: ${linear};
+}
+
+/* 浮动光斑：径向渐变 + 60px 模糊，两层不同位置 / 不同色 */
+.gradient-background::before,
+.gradient-background::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.55;
+  animation: gb-float 12s ease-in-out infinite;
+}
+
+.gradient-background::before {
+  top: -10%;
+  left: -10%;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(
+    circle,
+    ${c.accent1} 0%,
+    ${hexToRgba(c.accent1, 0)} 70%
+  );
+}
+
+.gradient-background::after {
+  bottom: -15%;
+  right: -10%;
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(
+    circle,
+    ${c.accent2} 0%,
+    ${hexToRgba(c.accent2, 0)} 70%
+  );
+  animation-delay: -4s;
+}
+
+@keyframes gb-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(20px, -16px, 0) scale(1.05);
+  }
+}`;
+}
+
+/** 写剪贴板：优先 Clipboard API，非安全上下文回退 textarea + execCommand */
+async function writeClipboard(text: string): Promise<void> {
+  if (
+    typeof navigator !== 'undefined' &&
+    navigator.clipboard &&
+    typeof navigator.clipboard.writeText === 'function'
+  ) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+}
+
+async function copyCss() {
+  try {
+    await writeClipboard(buildCss(currentStyle.value.key, colors));
+    message.success(`已复制「${currentStyle.value.name}」的 CSS3 样式`);
+  } catch {
+    message.error('复制失败，请手动复制');
+  }
+}
+
+/* ============================================================
+ * AI 生图背景订阅
+ * ========================================================== */
 
 const imageStore = useImageStore();
 
@@ -116,14 +478,18 @@ const activeTask = computed(() => imageStore.activeBackgroundTask);
 /** 当前生效的图片 URL：优先 blobUrl（避免第三方 CDN 倒序转码） */
 const bgImageUrl = computed(() => {
   const t = activeTask.value;
-  if (!t?.result) return '';
+  if (!t?.result) {
+    return '';
+  }
   return t.result.blobUrl || t.result.imageUrl || '';
 });
 
 /** 用时格式化（mm:ss） */
 function formatDuration(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
-  const m = Math.floor(totalSec / 60).toString().padStart(2, '0');
+  const m = Math.floor(totalSec / 60)
+    .toString()
+    .padStart(2, '0');
   const s = (totalSec % 60).toString().padStart(2, '0');
   return `${m}:${s}`;
 }
@@ -131,14 +497,18 @@ function formatDuration(ms: number): string {
 /** 最终用时（生成完成后展示） */
 const lastCostText = computed(() => {
   const t = activeTask.value;
-  if (!t?.result) return '';
+  if (!t?.result) {
+    return '';
+  }
   return `用时 ${formatDuration(t.result.elapsedMs)}`;
 });
 
 /** 模型名（取当前任务的 model，回退到默认值） */
 const aiModelText = computed(() => {
   const t = activeTask.value;
-  if (!t) return '';
+  if (!t) {
+    return '';
+  }
   const meta = IMAGE_MODEL_OPTIONS.find((m) => m.value === t.params.model);
   return meta?.label ?? t.params.model ?? '';
 });
@@ -146,7 +516,9 @@ const aiModelText = computed(() => {
 /** 尺寸（含 upscale） */
 const aiSizeText = computed(() => {
   const t = activeTask.value;
-  if (!t) return '';
+  if (!t) {
+    return '';
+  }
   const size = t.params.size ?? '';
   const up = t.params.upscale ? ` · ${t.params.upscale}` : '';
   return `${size}${up}`;
@@ -155,7 +527,9 @@ const aiSizeText = computed(() => {
 /** 输出格式 + 画质 */
 const aiFormatText = computed(() => {
   const t = activeTask.value;
-  if (!t) return '';
+  if (!t) {
+    return '';
+  }
   const fmt = (t.params.outputFormat ?? 'png').toUpperCase();
   const q = t.params.quality ?? 'auto';
   return `${fmt} · ${q}`;
@@ -164,7 +538,9 @@ const aiFormatText = computed(() => {
 /** 是否透明 */
 const aiTransparentText = computed(() => {
   const t = activeTask.value;
-  if (!t) return '';
+  if (!t) {
+    return '';
+  }
   return t.params.transparent ? '透明' : '不透明';
 });
 
@@ -175,7 +551,7 @@ const titleText = computed(() =>
 const subText = computed(() =>
   activeTask.value
     ? `AI Generated Background · ${aiModelText.value}`
-    : 'Gradient Background · 多层渐变与浮动光斑叠加',
+    : `Gradient Background · ${currentStyle.value.name}`,
 );
 
 function onImageLoad() {
@@ -191,53 +567,100 @@ function onImageError() {
 
 <style lang="scss" scoped>
 .gradient-background {
-  // 颜色变量集中定义，使用者只需覆盖以下变量即可换肤
+  // 颜色变量集中定义：四个色位由 :style 实时覆盖，此处仅为无内联样式时的兜底（深蓝）
   --gb-base-from: #0b1d3a;
   --gb-base-to: #142a52;
   --gb-accent-1: #00d4ff;
   --gb-accent-2: #4f7eff;
-  --gb-accent-3: #b06bff;
   --gb-title-text: #ffffff;
   --gb-sub-text: rgba(255, 255, 255, 0.7);
   --gb-tag-bg: rgba(255, 255, 255, 0.08);
   --gb-tag-border: rgba(255, 255, 255, 0.18);
   --gb-tag-text: #b5e8ff;
 
+  // 控制面板色：四种技法底色都是深色，面板统一白色半透明即可保证可读性
+  --gb-control-bg: rgba(255, 255, 255, 0.08);
+  --gb-control-bg-hover: rgba(255, 255, 255, 0.16);
+  --gb-control-border: rgba(255, 255, 255, 0.18);
+  --gb-control-active-bg: rgba(255, 255, 255, 0.24);
+  --gb-control-active-border: rgba(255, 255, 255, 0.45);
+  --gb-control-text: rgba(255, 255, 255, 0.78);
+
   position: relative;
   width: 100%;
   height: 320px;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border-radius: 8px;
   isolation: isolate;
-  background: linear-gradient(
-    180deg,
-    var(--gb-base-from) 0%,
-    var(--gb-base-to) 100%
-  );
 
-  &__layer {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-  }
-
-  // 对角线叠加：在视觉上增强方向感
-  &__layer--diag {
+  /**
+   * 技法一 · 线性渐变：单层 180° 双色线性渐变
+   * （同时也是无 modifier 时的兜底背景）
+   */
+  &,
+  &--linear {
     background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.04) 0%,
-      rgba(255, 255, 255, 0) 60%
+      180deg,
+      var(--gb-base-from) 0%,
+      var(--gb-base-to) 100%
     );
   }
 
-  // 浮动光斑（径向渐变 + 模糊），三层不同位置 / 不同色
-  &__layer--blob {
-    border-radius: 50%;
-    filter: blur(60px);
-    opacity: 0.55;
-    animation: gb-float 12s ease-in-out infinite;
+  /** 技法二 · 径向渐变：单层中心径向渐变 */
+  &--radial {
+    background: radial-gradient(
+      circle at 50% 45%,
+      var(--gb-base-from) 0%,
+      var(--gb-base-to) 72%
+    );
+  }
 
-    &--blob-1 {
+  /**
+   * 技法三 · 对角叠加：线性底 + 135° 白色高光叠加层。
+   * 叠加层用 ::before 而非子元素，复制的代码只贴 CSS 就能还原（不需要额外 HTML）。
+   */
+  &--diagonal {
+    background: linear-gradient(
+      180deg,
+      var(--gb-base-from) 0%,
+      var(--gb-base-to) 100%
+    );
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.06) 0%,
+        rgba(255, 255, 255, 0) 55%
+      );
+    }
+  }
+
+  /** 技法四 · 浮动光斑：线性底 + 两枚模糊径向光斑（缓慢漂移） */
+  &--blob {
+    background: linear-gradient(
+      180deg,
+      var(--gb-base-from) 0%,
+      var(--gb-base-to) 100%
+    );
+
+    &::before,
+    &::after {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(60px);
+      opacity: 0.55;
+      pointer-events: none;
+      animation: gb-float 12s ease-in-out infinite;
+    }
+
+    &::before {
       top: -10%;
       left: -10%;
       width: 320px;
@@ -249,7 +672,7 @@ function onImageError() {
       );
     }
 
-    &--blob-2 {
+    &::after {
       bottom: -15%;
       right: -10%;
       width: 360px;
@@ -261,34 +684,6 @@ function onImageError() {
       );
       animation-delay: -4s;
     }
-
-    &--blob-3 {
-      top: 30%;
-      left: 40%;
-      width: 240px;
-      height: 240px;
-      background: radial-gradient(
-        circle,
-        var(--gb-accent-3) 0%,
-        rgba(176, 107, 255, 0) 70%
-      );
-      animation-delay: -8s;
-    }
-  }
-
-  // 极淡的网格纹理，增加「科技感」肌理
-  &__grid {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background-image: linear-gradient(
-        rgba(255, 255, 255, 0.04) 1px,
-        transparent 1px
-      ),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-    background-size: 32px 32px;
-    mask-image: radial-gradient(circle at center, #000 0%, transparent 75%);
-    -webkit-mask-image: radial-gradient(circle at center, #000 0%, transparent 75%);
   }
 
   // AI 生图作为背景：保持比例 + 暗色蒙版保证文字可读
@@ -327,15 +722,17 @@ function onImageError() {
     -webkit-backdrop-filter: blur(4px);
   }
 
+  // 内容区吃掉剩余高度，控制面板固定贴底
   &__content {
     position: relative;
     z-index: 1;
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100%;
-    padding: 24px;
+    padding: 20px 20px 12px;
     box-sizing: border-box;
     text-align: center;
   }
@@ -373,6 +770,137 @@ function onImageError() {
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
   }
+
+  // 控制面板：tab 行 + 色位行 + 复制按钮
+  &__panel {
+    position: relative;
+    z-index: 2;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px 14px;
+    box-sizing: border-box;
+  }
+
+  &__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  &__tab {
+    padding: 4px 12px;
+    font-size: 12px;
+    line-height: 1.4;
+    font-family: inherit;
+    color: var(--gb-control-text);
+    background: var(--gb-control-bg);
+    border: 1px solid var(--gb-control-border);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s, border-color 0.2s;
+
+    &:hover {
+      color: var(--gb-title-text);
+      background: var(--gb-control-bg-hover);
+    }
+
+    &.is-active {
+      color: var(--gb-title-text);
+      background: var(--gb-control-active-bg);
+      border-color: var(--gb-control-active-border);
+    }
+  }
+
+  &__colors {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  &__color {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px 3px 4px;
+    color: var(--gb-control-text);
+    background: var(--gb-control-bg);
+    border: 1px solid var(--gb-control-border);
+    border-radius: 999px;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+
+    &:hover {
+      background: var(--gb-control-bg-hover);
+    }
+  }
+
+  // 原生取色器裁成圆形色块
+  &__color-input {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    flex: none;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    overflow: hidden;
+
+    &::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    &::-webkit-color-swatch {
+      border: none;
+      border-radius: 50%;
+    }
+
+    &::-moz-color-swatch {
+      border: none;
+      border-radius: 50%;
+    }
+  }
+
+  &__color-label {
+    font-size: 11px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  // 复制按钮：比色位胶囊更亮一档，作为面板的主操作
+  &__copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 12px;
+    font-size: 12px;
+    line-height: 1.4;
+    font-family: inherit;
+    color: var(--gb-title-text);
+    background: var(--gb-control-active-bg);
+    border: 1px solid var(--gb-control-active-border);
+    border-radius: 999px;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    transition: background 0.2s, transform 0.2s;
+
+    &:hover {
+      background: var(--gb-control-bg-hover);
+    }
+
+    &:active {
+      transform: scale(0.97);
+    }
+  }
 }
 
 /** 浮动光斑动画：通过 translate 缓慢漂移 */
@@ -388,8 +916,51 @@ function onImageError() {
 
 /** 用户开启系统级 reduced-motion 时关闭浮动动画 */
 @media (prefers-reduced-motion: reduce) {
-  .gradient-background__layer--blob {
+  .gradient-background--blob::before,
+  .gradient-background--blob::after {
     animation: none;
+  }
+}
+
+/** 小屏笔记本：卡片变矮，收起副标题与标签，压缩标题与面板间距 */
+@media (max-width: 1280px) {
+  .gradient-background {
+    &__title {
+      font-size: 22px;
+      letter-spacing: 2px;
+    }
+
+    &__sub,
+    &__tags {
+      display: none;
+    }
+
+    &__panel {
+      gap: 6px;
+      padding-bottom: 10px;
+    }
+  }
+}
+
+/** 移动端：只留控制面板，色位只留色块、复制按钮只留图标 */
+@media (max-width: 760px) {
+  .gradient-background {
+    &__content {
+      display: none;
+    }
+
+    &__panel {
+      gap: 4px;
+      padding: 0 10px 8px;
+    }
+
+    &__color-label {
+      display: none;
+    }
+
+    &__copy span {
+      display: none;
+    }
   }
 }
 </style>

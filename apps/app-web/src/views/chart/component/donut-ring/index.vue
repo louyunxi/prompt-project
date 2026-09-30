@@ -35,7 +35,7 @@
     4. 该图表无图片物料，无需 assets 资源目录。
 -->
 <template>
-  <div class="donut-ring">
+  <div ref="rootRef" class="donut-ring">
     <div class="donut-ring__chart-wrap">
       <div class="donut-ring__square-wrapper">
         <div class="donut-ring__square">
@@ -161,9 +161,10 @@ function readPieColors(el: HTMLElement): PieColors {
 }
 
 /** 保留小数（拷贝自源项目 @/common/fn 的 maxDecimalPlaces），unitMu 换算时使用 */
-function maxDecimalPlaces(
-  { value = 0, places = 2 }: { value?: number; places?: number } = {},
-): number {
+function maxDecimalPlaces({
+  value = 0,
+  places = 2,
+}: { value?: number; places?: number } = {}): number {
   if (Number.isNaN(value) || value === undefined || value === null) {
     return value;
   }
@@ -184,7 +185,9 @@ function maxDecimalPlaces(
 function formatUnitStr(str: string, flag: boolean): string {
   if (str && str.indexOf('&') !== -1) {
     const index = str.indexOf('&');
-    return flag ? str.substring(0, index) : str.substring(index + 1, str.length);
+    return flag
+      ? str.substring(0, index)
+      : str.substring(index + 1, str.length);
   }
   return str;
 }
@@ -220,8 +223,28 @@ function buildBaseOption(colors: PieColors): echarts.EChartsOption {
   };
 }
 
+const rootRef = ref<HTMLDivElement>();
 const chartRef = ref<HTMLDivElement>();
 let chartInstance: echarts.ECharts | null = null;
+/** 间距缩放基准高度：容器高度为 320px 时间距保持设计原值（1 倍） */
+const SPACE_BASE_HEIGHT = 320;
+/** 间距缩放系数钳制范围：下限更低，小容器里图例项更紧凑 */
+const SPACE_SCALE_MIN = 0.55;
+const SPACE_SCALE_MAX = 1.5;
+
+/** 依据容器高度计算文字间距缩放系数，写入 --dr-space-scale 供样式使用 */
+function updateSpacing() {
+  const root = rootRef.value;
+  if (!root) {
+    return;
+  }
+  const height = root.clientHeight || SPACE_BASE_HEIGHT;
+  const scale = Math.min(
+    SPACE_SCALE_MAX,
+    Math.max(SPACE_SCALE_MIN, height / SPACE_BASE_HEIGHT),
+  );
+  root.style.setProperty('--dr-space-scale', String(scale));
+}
 
 /** 初始化图表 */
 function initChart() {
@@ -258,13 +281,11 @@ function refreshChart() {
         type: 'pie',
         // value 为 0 时置 null（扇区不显示且颜色不错位，对应源 initModule 逻辑）
         // map 回调返回值声明为 any：null 值不在 PieDataItemOption 的 number 类型内
-        data: mockData.map(
-          (item): any => ({
-            name: item.name,
-            value: item.value || null,
-            unit: item.unit,
-          }),
-        ),
+        data: mockData.map((item): any => ({
+          name: item.name,
+          value: item.value || null,
+          unit: item.unit,
+        })),
       },
     ],
   };
@@ -280,6 +301,7 @@ function refreshChart() {
  * 比 window.resize 监听更准确；组件销毁时 disconnect 释放 observer。
  */
 const handleResize = debounce(() => {
+  updateSpacing();
   chartInstance?.resize();
 }, 200);
 
@@ -303,6 +325,7 @@ let resizeObserver: ResizeObserver | null = null;
 onMounted(() => {
   nextTick(() => {
     initChart();
+    updateSpacing();
     if (chartRef.value) {
       resizeObserver = new ResizeObserver(handleResize);
       resizeObserver.observe(chartRef.value);
@@ -332,7 +355,7 @@ onBeforeUnmount(() => {
   // —— 尺寸变量（响应式三档仅调整变量） ——
   --dr-center-title-size: 16px;
   --dr-center-num-size: 24px;
-  --dr-center-unit-size: 14px;
+  --dr-center-unit-size: 12px;
   --dr-legend-title-size: 16px;
   --dr-legend-num-size: 24px;
   --dr-legend-unit-size: 14px;
@@ -352,33 +375,40 @@ onBeforeUnmount(() => {
   position: relative;
   overflow: hidden;
   width: 100%;
-  height: 320px;
+  height: 100%;
+  // 最小宽高：父容器无确定高度时兜底（如画廊 auto 高度盒子）
+  min-width: 260px;
+  min-height: 240px;
 
-  // 图表区：宽 45% 方形（源 .echarts-warp，z-index 3 使 tooltip 浮于图例之上）
+  // 图表区：动态填充满容器高度，方形在内部上下/左右居中（aspect-ratio 保持方形 + 双向 max 限制）
   &__chart-wrap {
     position: relative;
     z-index: 3;
     width: var(--dr-chart-width);
     max-width: var(--dr-chart-max);
-    height: 95%;
+    height: 100%;
     display: flex;
     align-items: center;
+    justify-content: center;
     flex-shrink: 0;
     margin-left: auto;
     margin-right: auto;
   }
 
+  // 方形容器：aspect-ratio: 1 保持方形 + max-width/max-height 双向限制，不超过父容器
   &__square-wrapper {
     position: relative;
-    width: 100%;
-    height: 0;
+    width: auto;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 1;
   }
 
   &__square {
-    position: absolute;
+    position: relative;
     width: 100%;
-    padding-top: 100%;
-    transform: translateY(-50%);
+    height: 100%;
   }
 
   // echarts 容器（方形，高度 = 图表区宽度的 45% 左右）
@@ -398,8 +428,9 @@ onBeforeUnmount(() => {
     justify-content: center;
     text-align: center;
     align-items: center;
-    width: 62%;
-    height: 62%;
+    width: calc(70% - 5px);
+    // 高度由宽度按 1:1 比例撑起，避免父容器非正方形时中心圆变形
+    aspect-ratio: 1 / 1;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -411,7 +442,11 @@ onBeforeUnmount(() => {
     &-title {
       font-size: var(--dr-center-title-size);
       color: var(--dr-title-text);
-      margin-bottom: 12px;
+      // 间距随容器高度动态缩放（--dr-space-scale 由 JS 计算）
+      margin-bottom: 0;
+    }
+    &-value {
+      margin-bottom: 0;
     }
 
     &-num {
@@ -439,6 +474,10 @@ onBeforeUnmount(() => {
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
+    // 行间间距随容器高度动态缩放（--dr-space-scale 由 JS 计算），
+    // 小容器里图例项紧凑展示、尽可能占满容器
+    align-content: flex-start;
+    row-gap: calc(4px * var(--dr-space-scale, 1));
 
     // 第 1、3、5 项：宽 60% 左内边距，内层宽 50%
     // 第 2、4、6 项：宽 24% 右内边距，内层宽 100%
@@ -510,12 +549,13 @@ onBeforeUnmount(() => {
   &__legend-title {
     font-size: var(--dr-legend-title-size);
     color: var(--dr-title-text);
-    margin-bottom: 12px;
-    line-height: 18px;
+    // 间距随容器高度动态缩放（--dr-space-scale 由 JS 计算）
+    margin-bottom: calc(12px * var(--dr-space-scale, 1));
+    line-height: calc(18px * var(--dr-space-scale, 1));
   }
 
   &__legend-progress {
-    margin-bottom: 10px;
+    margin-bottom: calc(10px * var(--dr-space-scale, 1));
     font-size: 14px;
     color: var(--dr-progress-text);
   }
@@ -532,13 +572,12 @@ onBeforeUnmount(() => {
 
   &__legend-feed-unit {
     font-size: var(--dr-legend-unit-size);
-    padding-top: 5px;
+    padding-top: calc(5px * var(--dr-space-scale, 1));
     display: inline-block;
   }
 
   // —— 响应式：≤1280px 小屏笔记本 ——
   @media (max-width: 1280px) {
-    height: 280px;
     --dr-chart-width: 48%;
     --dr-chart-max: 260px;
     --dr-center-title-size: 14px;
@@ -561,12 +600,11 @@ onBeforeUnmount(() => {
 
   // —— 响应式：≥1920px 大屏显示器 ——
   @media (min-width: 1920px) {
-    height: 360px;
     --dr-chart-width: 45%;
     --dr-chart-max: 340px;
     --dr-center-title-size: 18px;
-    --dr-center-num-size: 28px;
-    --dr-center-unit-size: 16px;
+    --dr-center-num-size: 24px;
+    --dr-center-unit-size: 14px;
     --dr-legend-title-size: 18px;
     --dr-legend-num-size: 28px;
     --dr-legend-unit-size: 16px;

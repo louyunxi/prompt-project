@@ -149,8 +149,32 @@ function injectStyle(): void {
 /** 从 CSS background-image 值中提取第一个 url(...) 的地址 */
 function extractBackgroundUrl(value: string): string {
   if (!value || value === 'none') return '';
-  const matched = /url\(\s*(['"]?)([^'")]+)\1\s*\)/i.exec(value);
+  const matched = /url\(\s*(['"]?)([^'"))]+)\1\s*\)/i.exec(value);
   return matched?.[2] ?? '';
+}
+
+/**
+ * 判定图片地址是否允许出现「换图」按钮：
+ *   - 本地相对路径（/ 或 ./ 或 ../ 开头）
+ *   - 与当前站点同域名
+ *   - 域名包含 aliyuncs.com
+ * 排除 data: / blob: 等无法直接复用或不适合作为生图参考的地址。
+ */
+function isEditableImageUrl(src: string): boolean {
+  if (!src) return false;
+  // 显式排除 blob: 等临时对象地址；base64(data:) 允许换图
+  if (src.startsWith('blob:')) return false;
+
+  try {
+    const url = new URL(src, window.location.href);
+    // 相对路径会基于 location 解析，自然视为同域
+    if (url.host === window.location.host) return true;
+    if (url.host.includes('aliyuncs.com')) return true;
+    return false;
+  } catch {
+    // URL 解析失败时，保守地只接受常见相对路径写法
+    return /^(\/|\.{1,2}\/)/.test(src);
+  }
 }
 
 /**
@@ -384,7 +408,7 @@ function probeAndAttach(el: HTMLElement): void {
   if (el.dataset.imageMarkRegistered === '1') return;
 
   const hit = probe(el);
-  if (!hit?.src) return;
+  if (!hit?.src || !isEditableImageUrl(hit.src)) return;
 
   const host = resolveComponentHost(el);
   if (!host || !host.isConnected) return;
@@ -440,7 +464,13 @@ function rebuildButton(item: TrackedComponent): void {
     };
     imageEventBus.emit(ImageEvents.CHANGE_IMAGE, payload);
   });
-  host.replaceChild(newBtn, oldBtn);
+  // 旧按钮可能被外部 DOM 变更（如 Vue 重渲染/卸载）从 host 上摘掉，
+  // 此时 host.replaceChild 会抛 NotFoundError；检测后改用 appendChild 兜底
+  if (oldBtn.parentNode === host) {
+    host.replaceChild(newBtn, oldBtn);
+  } else {
+    host.appendChild(newBtn);
+  }
   item.mark = newBtn;
 }
 
@@ -524,8 +554,8 @@ function handleMutations(records: MutationRecord[]): void {
         const host = imageToHost.get(el);
         const item = host ? tracked.get(host) : undefined;
         const old = item?.images.find((img) => img.el === el);
-        if (!hit?.src) {
-          // 图片身份消失：摘掉
+        if (!hit?.src || !isEditableImageUrl(hit.src)) {
+          // 图片身份消失或不再允许换图：摘掉
           detachImage(el);
           return;
         }
@@ -601,6 +631,21 @@ function handleScroll(): void {
   schedulePositionUpdate();
 }
 
+/** 路由切换时重新全量扫描（Vue Router 只替换 <router-view> 内部，MutationObserver 的 childList 不触发） */
+function handleRouteChange(): void {
+  if (!started) return;
+  // 清除旧跟踪：路由切换后旧按钮可能挂在已卸载的组件上
+  tracked.forEach((item) => destroyComponentMark(item));
+  tracked.clear();
+  imageToHost.clear();
+  pendingRecords = [];
+  // 重新扫描（等待 Vue 完成渲染，下一帧执行）
+  requestAnimationFrame(() => {
+    scanSubtree(scanRoot);
+    updatePositions();
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /*                              启动 / 停止                             */
 /* ------------------------------------------------------------------ */
@@ -638,6 +683,8 @@ export function startImageMarker(rootSelector = '.layout-content'): () => void {
 
   window.addEventListener('scroll', handleScroll, true);
   window.addEventListener('resize', schedulePositionUpdate);
+  // 监听 hash 路由切换（Vue Router hash 模式）
+  window.addEventListener('hashchange', handleRouteChange);
 
   // 首屏已渲染的 DOM 立即全量扫一次（后续仅做增量）
   scanSubtree(scanRoot);
@@ -658,6 +705,7 @@ export function stopImageMarker(): void {
 
   window.removeEventListener('scroll', handleScroll, true);
   window.removeEventListener('resize', schedulePositionUpdate);
+  window.removeEventListener('hashchange', handleRouteChange);
 
   if (positionRaf) {
     cancelAnimationFrame(positionRaf);

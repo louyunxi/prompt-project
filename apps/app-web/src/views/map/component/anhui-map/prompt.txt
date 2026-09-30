@@ -1,0 +1,6 @@
+安徽区域轮廓光晕走线地图组件：
+- 使用 Leaflet + @turf/turf 还原 ThreeAssetsSupervision 中间地图效果。
+- 天地图底图采用与 basemap 组件一致的 Leaflet 原生 tileLayer 实现。
+- 渲染安徽省级轮廓、子级（地市）轮廓、外轮廓多层厚度发光层、背景发光、呼吸动画与走线动画。
+- 通过 polygon 镂空蒙层实现区域外深色外蒙效果。
+- 数据来自 public/assets/area-data/340000.json 与 340000_full.json。

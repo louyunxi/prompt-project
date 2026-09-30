@@ -17,7 +17,18 @@
         <div class="gallery__box">
           <component :is="item.component" />
         </div>
-        <div class="gallery__path">{{ item.srcPath }}</div>
+        <div class="gallery__meta-row">
+          <span
+            v-if="item.meta"
+            class="gallery__chip"
+            :class="`gallery__chip--${item.meta.tag}`"
+            :title="item.meta.label"
+            @click.stop
+          >
+            {{ item.meta.tag }}
+          </span>
+          <div class="gallery__path">{{ item.srcPath }}</div>
+        </div>
       </div>
     </div>
 
@@ -40,6 +51,7 @@ const categoryNames: Record<string, string> = {
   widget: '小组件',
   background: '背景',
   font: '字体',
+  loading: 'Loader',
 };
 
 /** 收集 views/<category>/component/<name>/index.vue 下的全部组件 */
@@ -53,8 +65,13 @@ const props = withDefaults(
     category: string;
     /** 可选：仅渲染指定组件名；不传则扫描该 category 下全部组件 */
     componentNames?: string[];
+    /**
+     * 可选：组件名 -> 元信息（标签 / 展示文案）。命中时在卡片下方渲染 chip，
+     * 不传则不渲染 chip（其它分类不影响）。
+     */
+    cellMeta?: Record<string, { tag: string; label: string }>;
   }>(),
-  { componentNames: () => [] as string[] },
+  { componentNames: () => [], cellMeta: () => ({}) },
 );
 
 const title = computed(() => categoryNames[props.category] ?? props.category);
@@ -62,13 +79,17 @@ const title = computed(() => categoryNames[props.category] ?? props.category);
 const items = computed(() => {
   const all = Object.entries(componentModules)
     .filter(([path]) => path.includes(`/views/${props.category}/component/`))
-    .map(([path, module]) => ({
-      path,
-      /** 规范化展示路径：`../../views/x/component/y/index.vue` → `src/views/x/component/y/index.vue` */
-      srcPath: path.replace(/^\.\.\/\.\.\//, 'src/'),
-      name: path.replace(/^.*\/component\/([^/]+)\/index\.vue$/, '$1'),
-      component: module.default,
-    }));
+    .map(([path, module]) => {
+      const name = path.replace(/^.*\/component\/([^/]+)\/index\.vue$/, '$1');
+      return {
+        path,
+        /** 规范化展示路径：`../../views/x/component/y/index.vue` → `src/views/x/component/y/index.vue` */
+        srcPath: path.replace(/^\.\.\/\.\.\//, 'src/'),
+        name,
+        component: module.default,
+        meta: props.cellMeta[name],
+      };
+    });
   const scoped = props.componentNames.length
     ? all.filter((it) => props.componentNames.includes(it.name))
     : all;
@@ -104,7 +125,7 @@ async function copyPath(path: string) {
 <style lang="scss" scoped>
 .gallery {
   width: 100%;
-  padding: 24px 32px 40px;
+  padding: 20px 20px;
   box-sizing: border-box;
 
   &__header {
@@ -170,13 +191,44 @@ async function copyPath(path: string) {
     word-break: break-all;
   }
 
+  /** chip + path 同行容器，chip 在左、path 占满剩余宽度 */
+  &__meta-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /** 分类标签 chip，由 cellMeta 注入；颜色按 tag 区分 */
+  &__chip {
+    flex-shrink: 0;
+    font-size: 11px;
+    line-height: 1;
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: #fff;
+    background: var(--primary-color);
+    cursor: default;
+    white-space: nowrap;
+  }
+
+  &__chip--数据展示 {
+    background: #1677ff;
+  }
+
+  &__chip--按钮 {
+    background: #722ed1;
+  }
+
   &__empty {
     padding: 64px 0;
   }
 
   // 图表分类：卡片深色背景（#05284b，图表组件为暗色主题设计）
   // 排版参考 app-prompt PcCompCard —— 同一行卡片按各自内容高度收缩（自然高度）
-  // 图表组件为固定尺寸（高 280~410px、宽 ≥423px），故放宽展示盒并自适应高度，避免出现滚动条
+  // 图表组件为固定尺寸（高 280~410px、宽 ≥423px），故放宽展示盒并固定展示高度，
+  // 让 chart 组件的 height: 100% 能真正铺满父容器（之前 height: auto + min-height: 320，
+  // 子 height: 100% 解析为 auto 导致组件实际只有 min-height 240，底部空 80px）
   &--chart {
     .gallery__grid {
       grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
@@ -189,8 +241,7 @@ async function copyPath(path: string) {
 
     .gallery__box {
       width: 448px;
-      height: auto;
-      min-height: 320px;
+      height: 360px;
     }
 
     .gallery__path {
